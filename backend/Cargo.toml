@@ -31,6 +31,9 @@ once_cell = "1.19"
 sysinfo = "0.29"
 hex = "0.4"
 sha2 = "0.10"
+# Session token signing
+hmac = "0.12"
+base64 = "0.21"
 # Backup encryption
 aes-gcm = "0.10"
 rand = "0.8" 

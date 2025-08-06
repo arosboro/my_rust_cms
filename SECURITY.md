@@ -5,9 +5,10 @@ This document outlines the comprehensive security measures implemented in the Ru
 ## Implemented Security Features ✅
 
 ### 1. Enhanced Password Security
-- **Argon2id Password Hashing**: Upgraded from bcrypt to Argon2id for superior security
-- **Backward Compatibility**: Maintains support for existing bcrypt passwords during migration
-- **Salt Generation**: Uses cryptographically secure random salts for each password
+- **bcrypt Password Hashing**: Industry-standard bcrypt with automatic salt generation (OWASP compliant)
+- **Automatic Salt Generation**: Each password gets cryptographically secure random salt
+- **Cost Factor**: Uses bcrypt DEFAULT_COST (12) for optimal security/performance balance
+- **Session-based Authentication**: Secure database-backed sessions with HMAC-signed tokens
 
 ### 2. Transport Security
 - **HTTPS Enforcement**: Security headers middleware enforces HTTPS in production
@@ -45,10 +46,14 @@ This document outlines the comprehensive security measures implemented in the Ru
 - **URL Validation**: Prevents javascript: and data: URI attacks
 - **SQL Injection Prevention**: Basic protection against SQL injection patterns
 
-### 7. Admin Access Control
+### 7. Session & Authentication Security
+- **HMAC-Signed Tokens**: Session tokens cryptographically signed with HMAC-SHA256
+- **Database-Backed Sessions**: Server-side session storage with immediate revocation capability
 - **Role-Based Authentication**: Strict admin role verification
-- **Session Validation**: Secure session management with expiration
+- **Session Expiration**: Configurable session lifetimes with automatic cleanup
+- **Multi-Session Support**: Controlled concurrent sessions per user
 - **Middleware Protection**: All admin endpoints protected by authentication middleware
+- **Backward Compatibility**: Supports both signed and unsigned tokens during transition
 
 ### 8. Error Handling Security
 - **Information Hiding**: Generic error messages prevent information leakage
@@ -77,7 +82,7 @@ This document outlines the comprehensive security measures implemented in the Ru
 ### Environment Variables (Production)
 ```bash
 # Required: Change these defaults!
-JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters
+# Authentication uses secure session-based tokens (not JWTs)
 SESSION_SECRET=your-super-secret-session-key-minimum-32-characters
 
 # CORS Configuration
@@ -99,7 +104,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/cms_db
 ### Production Deployment Checklist
 
 - [ ] **HTTPS**: Deploy behind HTTPS-enabled reverse proxy (nginx, Cloudflare, etc.)
-- [ ] **Secrets**: Rotate all default JWT and session secrets
+- [ ] **Secrets**: Rotate all default session secrets
 - [ ] **CORS**: Update allowed origins to production domains only
 - [ ] **Database**: Use production database with restricted access
 - [ ] **File Storage**: Configure secure file storage with proper permissions

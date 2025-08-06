@@ -85,9 +85,10 @@ Comprehensive administrative interface with intuitive design:
 High-performance Axum-based backend with enterprise features:
 
 - **RESTful API**: Complete CRUD operations with type-safe endpoints
-- **Authentication**: Secure session management with bcrypt password hashing
-- **Authorization**: Role-based access control with granular permissions
-- **Session Management**: Automatic cleanup and expiration handling
+- **Authentication**: Secure session-based authentication with HMAC-signed tokens
+- **Authorization**: Role-based access control with granular permissions  
+- **Password Security**: bcrypt hashing with automatic salt generation (OWASP compliant)
+- **Session Management**: Database-backed sessions with automatic cleanup and cryptographic signing
 - **File Upload System**: Secure media handling with comprehensive validation
 - **Database Migrations**: Version-controlled schema management with Diesel
 - **Rate Limiting**: Built-in protection against abuse and DDoS attacks
@@ -185,7 +186,7 @@ Before you begin, ensure you have the following installed:
    RUST_LOG=info
    
    # Security (Change in production!)
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+   # Authentication uses secure session-based tokens (not JWTs)
    SESSION_SECRET=your-super-secret-session-key-change-this-in-production
    
    # File Upload
@@ -252,7 +253,22 @@ The system automatically creates a default admin user:
 
 ### Authentication
 
-The API uses session-based authentication. Include the session token in requests requiring authentication.
+The API uses **secure session-based authentication** instead of JWTs for enhanced security:
+
+#### 🔒 Security Features
+- **Session-based tokens**: Database-backed with immediate revocation capability
+- **HMAC-SHA256 signing**: Cryptographically signed tokens prevent tampering  
+- **OWASP-compliant passwords**: bcrypt with automatic salt generation
+- **Automatic expiration**: Configurable session lifetimes with cleanup
+- **Multi-session support**: Multiple concurrent sessions per user (with limits)
+
+#### 🚀 Why Session-based over JWTs?
+- **Immediate revocation**: Sessions can be invalidated instantly
+- **Server-side control**: All session data controlled server-side
+- **Better for CMS**: Ideal for user-facing applications with logout functionality
+- **Enhanced security**: Combined database + cryptographic validation
+
+Include the session token in the `Authorization: Bearer {token}` header for authenticated requests.
 
 #### Public Endpoints
 
@@ -385,7 +401,7 @@ RUST_ENV=production
 RUST_LOG=warn
 
 # Security (Generate secure keys!)
-JWT_SECRET=your-production-jwt-secret-at-least-32-characters-long
+# Authentication uses secure session-based tokens (not JWTs)
 SESSION_SECRET=your-production-session-secret-at-least-32-characters-long
 
 # File Upload (Adjust for your needs)
@@ -396,7 +412,7 @@ UPLOAD_DIR=/app/uploads
 #### Security Checklist
 
 - [ ] Change default admin credentials
-- [ ] Generate secure JWT and session secrets
+- [ ] Generate secure session secrets
 - [ ] Configure proper CORS origins
 - [ ] Set up HTTPS/TLS termination
 - [ ] Configure firewall rules

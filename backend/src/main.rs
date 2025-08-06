@@ -67,9 +67,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_sessions_per_user: 3,
         enable_session_refresh: true,
         refresh_threshold_minutes: 30,
+        enable_token_signing: true, // Enable HMAC-SHA256 token signing
     };
     
-    let session_manager = SessionManager::new(db_pool.clone(), session_config);
+    let session_manager = SessionManager::new_with_signing(
+        db_pool.clone(), 
+        session_config,
+        &config.session_secret
+    );
     
     // Start background session cleanup
     let _cleanup_task = session_manager.clone().start_background_cleanup().await;

@@ -10,7 +10,7 @@ use crate::{
     database::DbPool,
     models::{Session, NewSession, User},
     middleware::errors::{AppError, ApiResult},
-
+    services::SessionSigner,
 };
 
 #[derive(Clone)]
@@ -20,6 +20,7 @@ pub struct SessionConfig {
     pub max_sessions_per_user: usize,
     pub enable_session_refresh: bool,
     pub refresh_threshold_minutes: i64,
+    pub enable_token_signing: bool,
 }
 
 impl Default for SessionConfig {
@@ -30,6 +31,7 @@ impl Default for SessionConfig {
             max_sessions_per_user: 5,         // Max 5 concurrent sessions per user
             enable_session_refresh: true,      // Allow automatic session refresh
             refresh_threshold_minutes: 60,     // Refresh if less than 1 hour remaining
+            enable_token_signing: true,        // Enable HMAC-SHA256 token signing
         }
     }
 }
@@ -38,6 +40,7 @@ impl Default for SessionConfig {
 pub struct SessionManager {
     pool: Arc<DbPool>,
     config: SessionConfig,
+    signer: Option<SessionSigner>,
 }
 
 #[derive(Debug)]
@@ -50,7 +53,25 @@ pub struct SessionStats {
 
 impl SessionManager {
     pub fn new(pool: Arc<DbPool>, config: SessionConfig) -> Self {
-        Self { pool, config }
+        Self { 
+            pool, 
+            config,
+            signer: None,
+        }
+    }
+
+    pub fn new_with_signing(pool: Arc<DbPool>, config: SessionConfig, session_secret: &str) -> Self {
+        let signer = if config.enable_token_signing {
+            Some(SessionSigner::new(session_secret))
+        } else {
+            None
+        };
+        
+        Self {
+            pool,
+            config,
+            signer,
+        }
     }
 
     pub fn new_with_defaults(pool: Arc<DbPool>) -> Self {
@@ -73,8 +94,14 @@ impl SessionManager {
             info!("Removed {} old sessions for user {} to stay within limit", removed, user_id);
         }
 
-        // Create new session
-        let session_token = Uuid::new_v4().to_string();
+        // Create new session token (signed or unsigned based on configuration)
+        let session_token = if let Some(ref signer) = self.signer {
+            signer.create_signed_token()
+                .map_err(|e| AppError::InternalError(format!("Failed to create signed token: {}", e)))?
+        } else {
+            Uuid::new_v4().to_string()
+        };
+        
         let expires_at = Utc::now().naive_utc() + Duration::hours(self.config.session_duration_hours);
 
         let new_session = NewSession {
@@ -93,7 +120,23 @@ impl SessionManager {
     pub async fn validate_session(&self, token: &str) -> ApiResult<Session> {
         let mut conn = self.pool.get().map_err(|e| AppError::DatabaseError(e.to_string()))?;
         
-        let session = Session::find_by_token(&mut conn, token)?
+        // Extract the actual token to look up in database
+        let lookup_token = if let Some(ref signer) = self.signer {
+            // If we have a signer, check if this is a signed token
+            if crate::services::SessionSigner::is_signed_token(token) {
+                // Verify signature and extract UUID
+                signer.verify_signed_token(token)
+                    .ok_or(AppError::InvalidToken)?
+            } else {
+                // Handle unsigned tokens (for backward compatibility)
+                token.to_string()
+            }
+        } else {
+            // No signing enabled, use token directly
+            token.to_string()
+        };
+        
+        let session = Session::find_by_token(&mut conn, &lookup_token)?
             .ok_or(AppError::InvalidToken)?;
 
         // Check if session is expired
