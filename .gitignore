@@ -84,3 +84,4 @@ frontend/Cargo.lock
 *.tmp
 *.temp
 scratch.txt
+regenerate_promotional_pages.py

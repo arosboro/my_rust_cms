@@ -8,9 +8,6 @@ pub struct Config {
     pub backend_host: String,
     pub rust_env: String,
     pub rust_log: String,
-    #[allow(dead_code)]
-    pub jwt_secret: String,
-    #[allow(dead_code)]
     pub session_secret: String,
     #[allow(dead_code)]
     pub max_file_size: usize,
@@ -36,8 +33,6 @@ impl Config {
                 .unwrap_or_else(|_| "development".to_string()),
             rust_log: env::var("RUST_LOG")
                 .unwrap_or_else(|_| "info".to_string()),
-            jwt_secret: env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "your-super-secret-jwt-key-change-this-in-production".to_string()),
             session_secret: env::var("SESSION_SECRET")
                 .unwrap_or_else(|_| "your-super-secret-session-key-change-this-in-production".to_string()),
             max_file_size: env::var("MAX_FILE_SIZE")

@@ -47,9 +47,10 @@ impl From<Post> for FrontendPost {
 pub async fn get_posts(
     State(services): State<AppServices>
 ) -> Result<ResponseJson<Vec<FrontendPost>>, AppError> {
-    let mut conn = services.db_pool.get()
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-    let posts = Post::list(&mut conn)?;
+    let posts = services.db_service.execute(|conn| {
+        Post::list(conn)
+    }).await?;
+    
     let frontend_posts: Vec<FrontendPost> = posts.into_iter().map(FrontendPost::from).collect();
     Ok(ResponseJson(frontend_posts))
 }
@@ -62,10 +63,9 @@ pub async fn get_post(
     State(services): State<AppServices>, 
     Path(id): Path<i32>
 ) -> Result<ResponseJson<FrontendPost>, AppError> {
-    let mut conn = services.db_pool.get()
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-    
-    let post = Post::find_by_id(&mut conn, id)?
+    let post = services.db_service.execute_optional(move |conn| {
+        Ok(Post::find_by_id(conn, id)?)
+    }).await?
         .ok_or_else(|| AppError::NotFound("Post not found".to_string()))?;
     
     Ok(ResponseJson(FrontendPost::from(post)))
@@ -89,9 +89,6 @@ pub async fn create_post(
     validate_text_content(&frontend_post.title, 200)?;
     validate_text_content(&frontend_post.content, 50000)?;
     
-    let mut conn = services.db_pool.get()
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-    
     let new_post = NewPost {
         title: frontend_post.title.trim().to_string(),
         content: frontend_post.content.trim().to_string(),
@@ -99,7 +96,9 @@ pub async fn create_post(
         user_id: Some(auth_user.id),
     };
     
-    let created_post = Post::create(&mut conn, new_post)?;
+    let created_post = services.db_service.execute(move |conn| {
+        Post::create(conn, new_post)
+    }).await?;
     let response = FrontendPost {
         id: Some(created_post.id),
         title: created_post.title,
@@ -130,13 +129,7 @@ pub async fn update_post(
     validate_text_content(&frontend_post.title, 200)?;
     validate_text_content(&frontend_post.content, 50000)?;
     
-    let mut conn = services.db_pool.get()
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-    
-    // Check if post exists
-    let _existing_post = Post::find_by_id(&mut conn, id)?
-        .ok_or_else(|| AppError::NotFound("Post not found".to_string()))?;
-    
+    // Check if post exists and update in one operation
     let update_post = UpdatePost {
         title: Some(frontend_post.title.trim().to_string()),
         content: Some(frontend_post.content.trim().to_string()),
@@ -145,7 +138,17 @@ pub async fn update_post(
         updated_at: Some(chrono::Utc::now().naive_utc()),
     };
     
-    let updated_post = Post::update(&mut conn, id, update_post)?;
+    let updated_post = services.db_service.execute(move |conn| {
+        // Check if post exists
+        let _existing_post = Post::find_by_id(conn, id)?
+            .ok_or_else(|| diesel::result::Error::NotFound)?;
+        
+        Post::update(conn, id, update_post)
+    }).await.map_err(|e| match e {
+        AppError::DatabaseError(msg) if msg.contains("NotFound") => 
+            AppError::NotFound("Post not found".to_string()),
+        other => other,
+    })?;
     Ok(ResponseJson(FrontendPost::from(updated_post)))
 }
 
@@ -157,14 +160,17 @@ pub async fn delete_post(
     State(services): State<AppServices>, 
     Path(id): Path<i32>
 ) -> Result<ResponseJson<serde_json::Value>, AppError> {
-    let mut conn = services.db_pool.get()
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-    
-    // Check if post exists
-    let _existing_post = Post::find_by_id(&mut conn, id)?
-        .ok_or_else(|| AppError::NotFound("Post not found".to_string()))?;
-    
-    Post::delete(&mut conn, id)?;
+    services.db_service.execute(move |conn| {
+        // Check if post exists
+        let _existing_post = Post::find_by_id(conn, id)?
+            .ok_or_else(|| diesel::result::Error::NotFound)?;
+        
+        Post::delete(conn, id)
+    }).await.map_err(|e| match e {
+        AppError::DatabaseError(msg) if msg.contains("NotFound") => 
+            AppError::NotFound("Post not found".to_string()),
+        other => other,
+    })?;
     
     Ok(ResponseJson(serde_json::json!({
         "success": true,

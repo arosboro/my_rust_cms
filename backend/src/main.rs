@@ -38,6 +38,7 @@ use std::sync::Arc;
 pub struct AppServices {
     pub db_pool: Arc<DbPool>,
     pub session_manager: SessionManager,
+    pub db_service: services::DbService,
 }
 
 // Re-export controller types for convenience
@@ -74,9 +75,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _cleanup_task = session_manager.clone().start_background_cleanup().await;
     info!("Session cleanup background task started");
     
+    let db_service = services::DbService::new(db_pool.clone());
+    
     let app_services = AppServices {
         db_pool: db_pool.clone(),
         session_manager,
+        db_service,
     };
     
     // Initialize with demo data in database
