@@ -3,6 +3,7 @@ use crate::services::api_service::{get_media, delete_media, MediaItem};
 use web_sys::{File, HtmlInputElement, DragEvent, FileList, InputEvent, MouseEvent};
 use wasm_bindgen::JsCast;
 use gloo_net::http::Request;
+use crate::services::auth_service::get_auth_token;
 
 #[derive(Clone, PartialEq)]
 enum ViewMode {
@@ -50,7 +51,10 @@ async fn upload_file(file: &File) -> Result<MediaItem, String> {
     let form_data = web_sys::FormData::new().unwrap();
     form_data.append_with_blob("file", &file).unwrap();
     
+    // Attach Authorization header (admin routes require auth)
+    let token = get_auth_token().map_err(|_| "Not authenticated".to_string())?;
     let response = Request::post("http://localhost:8081/api/media/upload")
+        .header("Authorization", &format!("Bearer {}", token))
         .body(form_data)
         .map_err(|e| format!("Failed to create request: {}", e))?
         .send()

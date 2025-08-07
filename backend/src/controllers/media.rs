@@ -41,10 +41,13 @@ pub async fn upload_media(
     mut multipart: Multipart
 ) -> Result<(StatusCode, ResponseJson<serde_json::Value>), AppError> {
     // Create upload directory if it doesn't exist
-    let upload_dir = "backend/uploads";
+    let upload_dir = "uploads";
     if !StdPath::new(upload_dir).exists() {
         fs::create_dir_all(upload_dir).await
-            .map_err(|e| AppError::InternalError(format!("Failed to create upload directory: {}", e)))?;
+            .map_err(|e| {
+                tracing::error!(error = %e, "Failed to create upload directory");
+                AppError::InternalError(format!("Failed to create upload directory: {}", e))
+            })?;
     }
 
     while let Some(field) = multipart.next_field().await
@@ -60,7 +63,10 @@ pub async fn upload_media(
                 .unwrap_or("application/octet-stream")
                 .to_string();
             let data = field.bytes().await
-                .map_err(|e| AppError::ValidationError(format!("Failed to read file data: {}", e)))?;
+                .map_err(|e| {
+                    tracing::error!(error = %e, "Failed to read multipart file bytes");
+                    AppError::ValidationError(format!("Failed to read file data: {}", e))
+                })?;
             
             // Validate file upload
             validate_file_upload(&file_name, &content_type, data.len())?;
@@ -75,7 +81,10 @@ pub async fn upload_media(
             
             // Save file
             fs::write(&file_path, &data).await
-                .map_err(|e| AppError::InternalError(format!("Failed to save file: {}", e)))?;
+                .map_err(|e| {
+                    tracing::error!(error = %e, path = %file_path, "Failed to save uploaded file");
+                    AppError::InternalError(format!("Failed to save file: {}", e))
+                })?;
             
             // Save to database
             let mut conn = services.db_pool.get()
@@ -88,7 +97,11 @@ pub async fn upload_media(
                 user_id: Some(auth_user.id),
             };
             
-            let created_media = Media::create(&mut conn, new_media)?;
+            let created_media = Media::create(&mut conn, new_media)
+                .map_err(|e| {
+                    tracing::error!(error = %e, "Failed to insert media record");
+                    e
+                })?;
             
             return Ok((StatusCode::CREATED, ResponseJson(serde_json::json!({
                 "success": true,
@@ -129,7 +142,7 @@ pub async fn delete_media(
     // Delete actual file from disk
     // Extract filename from URL and delete physical file
     if let Some(filename) = media.url.strip_prefix("/uploads/") {
-        let file_path = format!("backend/uploads/{}", filename);
+        let file_path = format!("uploads/{}", filename);
         if StdPath::new(&file_path).exists() {
             if let Err(e) = fs::remove_file(&file_path).await {
                 tracing::warn!("Failed to delete file {}: {}", file_path, e);

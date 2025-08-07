@@ -509,7 +509,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(public_routes)
         .merge(auth_routes)
         .merge(admin_routes)
-        .nest_service("/uploads", tower_http::services::ServeDir::new("backend/uploads"))
+        .nest_service("/uploads", tower_http::services::ServeDir::new("uploads"))
         .with_state(app_services.clone())
         .layer(cors)
         .layer(axum_middleware::from_fn_with_state(

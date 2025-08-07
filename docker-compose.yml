@@ -1,23 +1,91 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:13
+    image: postgres:15-alpine
+    container_name: rustcms_postgres
     environment:
-      POSTGRES_USER: username
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: my_rust_cms
+      POSTGRES_USER: ${POSTGRES_USER:-rustcms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-my_rust_cms}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - rustcms-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rustcms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  web:
-    build: .
+  # Frontend (Static Files)
+  frontend:
+    image: nginx:alpine
+    container_name: rustcms_frontend
     ports:
-      - "8080:8080"
+      - "8080:80"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - rustcms-network
+    restart: unless-stopped
     depends_on:
-      - postgres
+      - web
+
+  # Rust CMS Backend Application
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: rustcms_web
+    ports:
+      - "8081:8081"
+    env_file:
+      - docker.env
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-rustcms}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-my_rust_cms}
+      - RUST_LOG=${RUST_LOG:-info}
+      - BACKEND_HOST=0.0.0.0
+      - BACKEND_PORT=8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/uploads:/app/uploads
+    networks:
+      - rustcms-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development database management tool (optional)
+  adminer:
+    image: adminer:4.8.1
+    container_name: rustcms_adminer
+    ports:
+      - "8081:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+    networks:
+      - rustcms-network
+    restart: unless-stopped
+    profiles:
+      - dev
 
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  rustcms-network:
+    driver: bridge

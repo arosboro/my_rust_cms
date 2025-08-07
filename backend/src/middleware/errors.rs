@@ -82,7 +82,14 @@ impl IntoResponse for AppError {
             AppError::InsufficientPermissions => (StatusCode::FORBIDDEN, "INSUFFICIENT_PERMISSIONS", "Insufficient permissions"),
             AppError::ValidationError(msg) => (StatusCode::BAD_REQUEST, "VALIDATION_ERROR", msg.as_str()),
             AppError::InvalidInput(msg) => (StatusCode::BAD_REQUEST, "INVALID_INPUT", msg.as_str()),
-            AppError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR", "Internal server error"),
+            AppError::DatabaseError(msg) => {
+                // Detect unique violation to surface 409 instead of 500
+                if msg.contains("unique") || msg.contains("UNIQUE") || msg.contains("duplicate key value violates unique constraint") {
+                    (StatusCode::CONFLICT, "CONFLICT", "Unique constraint violation")
+                } else {
+                    (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR", "Internal server error")
+                }
+            }
             AppError::DatabaseConnection(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_CONNECTION_ERROR", "Database connection error"),
             AppError::DatabaseQuery(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_QUERY_ERROR", "Database query error"),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, "NOT_FOUND", msg.as_str()),
@@ -99,6 +106,9 @@ impl IntoResponse for AppError {
             message: message.to_string(),
             details: match &self {
                 AppError::ValidationError(msg) | AppError::InvalidInput(msg) | AppError::ConflictError(msg) | AppError::NotFound(msg) | AppError::BadRequest(msg) => {
+                    Some(serde_json::json!({ "error": msg }))
+                }
+                AppError::InternalError(msg) | AppError::InternalServerError(msg) | AppError::DatabaseError(msg) | AppError::Configuration(msg) => {
                     Some(serde_json::json!({ "error": msg }))
                 }
                 _ => None,
