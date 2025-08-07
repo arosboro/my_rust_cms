@@ -817,14 +817,21 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
             column_drag_over.set(None);
             
             if let Some(component_type) = (*dragging_component).clone() {
+            web_sys::console::log_1(&format!("!!! CREATING NEW COMPONENT: {:?}", component_type).into());
+            
+            let default_content = component_type.default_content();
+            web_sys::console::log_1(&format!("!!! DEFAULT CONTENT FOR {:?}: '{}'", component_type, default_content).into());
+            
             let new_component = PageComponent {
                 id: uuid::Uuid::new_v4().to_string(),
                 component_type: component_type.clone(),
-                content: component_type.default_content(),
+                content: default_content,
                 styles: ComponentStyles::default(),
                 position: Position::default(),
                 properties: ComponentProperties::default(),
             };
+            
+            web_sys::console::log_1(&format!("!!! FINAL COMPONENT TYPE: {:?}, CONTENT: '{}'", new_component.component_type, new_component.content).into());
             
             let mut current_components = (*components).clone();
             current_components.push(new_component);
@@ -1304,12 +1311,14 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                         component.styles.background_repeat
                                                     )}
                                                 >
-                                                    {render_component_content_with_drop_zones(
-                                                        component, 
-                                                        on_nested_drop.clone(), 
-                                                        dragging_component.clone(), 
-                                                        container_drag_over.clone(), 
-                                                        column_drag_over.clone(),
+                                                    {
+                                                        web_sys::console::log_1(&format!("!!! MAIN RENDER: Component type: {:?}, content: '{}'", component.component_type, component.content).into());
+                                                        render_component_content_with_drop_zones(
+                                                            component, 
+                                                            on_nested_drop.clone(), 
+                                                            dragging_component.clone(), 
+                                                            container_drag_over.clone(), 
+                                                            column_drag_over.clone(),
                                                         selected_component.clone(),
                                                         on_component_click.clone(),
                                                         on_component_edit.clone(),
@@ -4924,6 +4933,7 @@ fn render_component_content_with_drop_zones(
     on_component_duplicate: Callback<String>,
     on_component_delete: Callback<String>
 ) -> Html {
+    web_sys::console::log_1(&format!("!!! RENDER_WITH_DROP_ZONES: Component type: {:?}", component.component_type).into());
     match component.component_type {
         ComponentType::Container => {
             let container_id = component.id.clone();
@@ -5664,7 +5674,10 @@ fn render_component_content_with_drop_zones(
             }
         }
         // For all other component types, use the original rendering function
-        _ => render_component_content(component)
+        _ => {
+            web_sys::console::log_1(&format!("!!! FALLBACK TO render_component_content for: {:?}", component.component_type).into());
+            render_component_content(component)
+        }
     }
 }
 

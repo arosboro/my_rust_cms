@@ -4,7 +4,6 @@ pub mod auth;
 
 mod dashboard;
 mod post_list;
-mod page_builder;
 mod media_library;
 mod user_management;
 mod settings;
