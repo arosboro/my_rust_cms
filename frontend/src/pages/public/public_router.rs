@@ -915,27 +915,39 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
         }
         ComponentType::Video => {
             let video_url = &component.properties.video_url;
-            let autoplay = component.properties.video_autoplay;
-            let controls = component.properties.video_controls;
-            let muted = component.properties.video_muted;
-            let loop_video = component.properties.video_loop;
             
-            html! {
-                <div class="component video-component" style={format_component_styles(&component.styles)}>
-                    <video 
-                        src={video_url.clone()}
-                        controls={controls}
-                        autoplay={autoplay}
-                        muted={muted}
-                        loop={loop_video}
-                        style="width: 100%; height: auto;"
-                    >
-                        {"Your browser does not support the video tag."}
-                    </video>
-                    if !component.content.is_empty() {
-                        <p style="margin-top: 8px;">{&component.content}</p>
-                    }
-                </div>
+            if video_url.is_empty() {
+                // Show placeholder for video component with no URL
+                html! {
+                    <div class="component video-component" style={format_component_styles(&component.styles)}>
+                        <div class="placeholder-video" style="background: var(--public-background-secondary, #f5f5f5); border: 2px dashed var(--public-border-light, #ccc); padding: 60px 40px; text-align: center; border-radius: 8px; color: var(--public-text-secondary, #666);">
+                            <div style="font-size: 48px; margin-bottom: 16px;">{"🎥"}</div>
+                            <div style="font-size: 18px; font-weight: 500; margin-bottom: 8px;">{"Video Component"}</div>
+                            <div style="font-size: 14px;">{"Configure video URL in properties to display video"}</div>
+                        </div>
+                    </div>
+                }
+            } else {
+                let autoplay = component.properties.video_autoplay;
+                let controls = component.properties.video_controls;
+                let muted = component.properties.video_muted;
+                let loop_video = component.properties.video_loop;
+                
+                html! {
+                    <div class="component video-component" style={format_component_styles(&component.styles)}>
+                        <video 
+                            src={video_url.clone()}
+                            controls={controls}
+                            autoplay={autoplay}
+                            muted={muted}
+                            loop={loop_video}
+                            style="width: 100%; height: auto;"
+                        >
+                            {"Your browser does not support the video tag."}
+                        </video>
+                        // Note: Removed text content display for video components - videos should not show text
+                    </div>
+                }
             }
         }
         ComponentType::PostsList => {
