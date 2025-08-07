@@ -480,7 +480,7 @@ impl ComponentType {
             ComponentType::Card => "## 🌟 Feature Highlight\n\nDrag-and-drop page builder with real-time preview. Create professional pages without coding knowledge.\n\n**Key Benefits:**\n- Visual editing\n- Real-time preview\n- Mobile responsive\n- SEO optimized\n\n[Try Page Builder →](/page-builder)".to_string(),
             ComponentType::List => "✅ **Rust-powered backend** for maximum performance\n✅ **WebAssembly frontend** for modern user experience\n✅ **Drag-and-drop page builder** for easy content creation\n✅ **Media management** with file upload and organization\n✅ **User authentication** and role-based access\n✅ **Responsive design** that works on all devices".to_string(),
             ComponentType::Quote => "> \"This Rust CMS has revolutionized how we manage our content. The performance is incredible and the page builder makes it easy for our team to create beautiful pages without technical knowledge.\"\n\n*— Sarah Johnson, Content Manager*".to_string(),
-            ComponentType::Video => "[![Rust CMS Demo Video](https://via.placeholder.com/800x450/2563eb/ffffff?text=▶️+Watch+Demo)](https://example.com/demo-video)\n\n**See our CMS in action!**\n\nWatch this 5-minute demo to see how easy it is to create and manage content with our platform.".to_string(),
+            ComponentType::Video => "".to_string(),
             ComponentType::Spacer => "".to_string(),
             ComponentType::Divider => "---".to_string(),
             ComponentType::ContactForm => "## 📧 Get in Touch\n\nReady to transform your content management? We'd love to hear from you and help you get started.\n\n**Why choose our CMS?**\n- Built with modern Rust technology\n- Intuitive drag-and-drop interface\n- Enterprise-grade security\n- 24/7 support\n\n[Contact Form - Name, Email, Message fields would appear here]".to_string(),
@@ -697,6 +697,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
     let column_drag_over = use_state(|| None::<(String, String)>); // stores (container_id, column) when dragging over
     let show_media_picker = use_state(|| false);
     let media_picker_target_component = use_state(|| None::<String>);
+    let media_picker_images_only = use_state(|| true);
 
     // Load initial components when provided (always update, even if empty)
     {
@@ -941,8 +942,10 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
     let open_media_picker = {
         let show_media_picker = show_media_picker.clone();
         let media_picker_target_component = media_picker_target_component.clone();
-        Callback::from(move |component_id: String| {
+        let media_picker_images_only = media_picker_images_only.clone();
+        Callback::from(move |(component_id, images_only): (String, bool)| {
             media_picker_target_component.set(Some(component_id));
+            media_picker_images_only.set(images_only);
             show_media_picker.set(true);
         })
     };
@@ -964,9 +967,17 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
             if let Some(ref component_id) = *media_picker_target_component {
                 let mut current_components = (*components).clone();
                 if let Some(component) = current_components.iter_mut().find(|c| c.id == *component_id) {
-                    component.properties.image_url = format!("http://localhost:8081{}", media_item.url);
-                    if component.properties.image_alt.is_empty() {
-                        component.properties.image_alt = media_item.name;
+                    match component.component_type {
+                        ComponentType::Image => {
+                            component.properties.image_url = format!("http://localhost:8081{}", media_item.url);
+                            if component.properties.image_alt.is_empty() {
+                                component.properties.image_alt = media_item.name;
+                            }
+                        }
+                        ComponentType::Video => {
+                            component.properties.video_url = format!("http://localhost:8081{}", media_item.url);
+                        }
+                        _ => {}
                     }
                 }
                 components.set(current_components);
@@ -1394,8 +1405,8 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
 
                                 <div class="modal-body">
                                     <div class="property-sections">
-                                        // Content Section (hide for image and list components as they use component-specific properties)
-                                        {if !matches!(component.component_type, ComponentType::Image | ComponentType::List) {
+                                        // Content Section (hide for image, video, and list components as they use component-specific properties)
+                                        {if !matches!(component.component_type, ComponentType::Image | ComponentType::Video | ComponentType::List) {
                                             html! {
                                                 <div class="property-section">
                                                     <h4 class="section-title">{"Content"}</h4>
@@ -1790,7 +1801,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                                     let open_media_picker = open_media_picker.clone();
                                                                     let component_id = component.id.clone();
                                                                     Callback::from(move |_: MouseEvent| {
-                                                                        open_media_picker.emit(component_id.clone());
+                                                                        open_media_picker.emit((component_id.clone(), true));
                                                                     })
                                                                 }}
                                                             >
@@ -2729,8 +2740,27 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                             ComponentType::Video => html! {
                                                 <div class="property-section">
                                                     <h4 class="section-title">{"Video Properties"}</h4>
+                                                    
                                                     <div class="property-group">
-                                                        <label>{"Video URL"}</label>
+                                                        <label>{"Video Source"}</label>
+                                                        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                                                            <button 
+                                                                class="btn btn-primary"
+                                                                style="white-space: nowrap;"
+                                                                onclick={{
+                                                                    let open_media_picker = open_media_picker.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |_: MouseEvent| {
+                                                                        open_media_picker.emit((component_id.clone(), false));
+                                                                    })
+                                                                }}
+                                                            >
+                                                                {"🎥 Browse Videos"}
+                                                            </button>
+                                                            <span style="font-size: 12px; color: var(--public-text-secondary, #666);">
+                                                                {"or enter URL manually:"}
+                                                            </span>
+                                                        </div>
                                                         <input 
                                                             type="text" 
                                                             value={component.properties.video_url.clone()} 
@@ -2745,7 +2775,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                             }}
                                                         />
                                                         <small style="color: var(--public-text-secondary, #666); font-size: 12px; margin-top: 4px; display: block;">
-                                                            {"Supports: YouTube, Vimeo, .mp4, .webm, .ogg files"}
+                                                            {"Supports: Uploaded videos, YouTube, Vimeo, .mp4, .webm, .ogg files"}
                                                         </small>
                                                     </div>
                                                     <div class="property-group">
@@ -3826,7 +3856,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
             // Media Picker Modal
             <MediaPicker 
                 show={*show_media_picker}
-                filter_images_only={true}
+                filter_images_only={*media_picker_images_only}
                 on_select={on_media_select}
                 on_close={close_media_picker}
             />

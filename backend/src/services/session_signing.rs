@@ -34,6 +34,14 @@ impl SessionSigner {
         Ok(format!("{}.{}", uuid_token, signature))
     }
 
+    /// Create a signed token from an existing UUID
+    /// 
+    /// Format: {uuid}.{base64_signature}
+    pub fn create_signed_token_from_uuid(&self, uuid: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let signature = self.sign_token(uuid)?;
+        Ok(format!("{}.{}", uuid, signature))
+    }
+
     /// Sign a token with HMAC-SHA256
     fn sign_token(&self, token: &str) -> Result<String, Box<dyn std::error::Error>> {
         let mut mac = HmacSha256::new_from_slice(&self.secret)?;

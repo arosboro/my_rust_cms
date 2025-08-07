@@ -94,23 +94,25 @@ impl SessionManager {
             info!("Removed {} old sessions for user {} to stay within limit", removed, user_id);
         }
 
-        // Create new session token (signed or unsigned based on configuration)
-        let session_token = if let Some(ref signer) = self.signer {
-            signer.create_signed_token()
-                .map_err(|e| AppError::InternalError(format!("Failed to create signed token: {}", e)))?
-        } else {
-            Uuid::new_v4().to_string()
-        };
+        // Create new session token - always store UUID in database, return signed token if signing enabled
+        let uuid_token = Uuid::new_v4().to_string();
         
         let expires_at = Utc::now().naive_utc() + Duration::hours(self.config.session_duration_hours);
 
         let new_session = NewSession {
             user_id: Some(user_id),
-            session_token,
+            session_token: uuid_token.clone(),
             expires_at: Some(expires_at),
         };
 
-        let session = Session::create(&mut conn, new_session)?;
+        let mut session = Session::create(&mut conn, new_session)?;
+        
+        // If signing is enabled, return signed token to caller
+        if let Some(ref signer) = self.signer {
+            let signed_token = signer.create_signed_token_from_uuid(&uuid_token)
+                .map_err(|e| AppError::InternalError(format!("Failed to sign token: {}", e)))?;
+            session.session_token = signed_token;
+        }
         info!("Created new session for user {}: {}", user_id, session.id);
         
         Ok(session)

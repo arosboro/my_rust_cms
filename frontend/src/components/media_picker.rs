@@ -56,6 +56,10 @@ pub fn media_picker(props: &MediaPickerProps) -> Html {
                         if filter_images_only && !item.type_.starts_with("image") {
                             return false;
                         }
+                        // When not filtering images only, show videos primarily but also allow images
+                        if !filter_images_only && !item.type_.starts_with("video") && !item.type_.starts_with("image") {
+                            return false;
+                        }
                         // Filter by search term
                         if !search.is_empty() {
                             item.name.to_lowercase().contains(&search.to_lowercase())
@@ -125,7 +129,7 @@ pub fn media_picker(props: &MediaPickerProps) -> Html {
                     justify-content: space-between;
                 ">
                     <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #333;">
-                        {if props.filter_images_only { "Select Image" } else { "Select Media" }}
+                        {if props.filter_images_only { "Select Image" } else { "Select Video" }}
                     </h3>
                     <button 
                         onclick={let on_close = props.on_close.clone(); Callback::from(move |_| on_close.emit(()))}
@@ -212,7 +216,7 @@ pub fn media_picker(props: &MediaPickerProps) -> Html {
                                     {if props.filter_images_only { 
                                         "No images found. Upload images in the Media Library first." 
                                     } else { 
-                                        "No media found. Upload files in the Media Library first." 
+                                        "No videos found. Upload video files in the Media Library first." 
                                     }}
                                 </p>
                             </div>
