@@ -125,6 +125,10 @@ pub fn login_page(props: &LoginProps) -> Html {
 
                 <div class="auth-footer">
                     <p>{"Demo credentials: admin / admin"}</p>
+                    <p>
+                        {"Don't have an account? "}
+                        <a href="/signup" class="auth-link">{"Sign up here"}</a>
+                    </p>
                 </div>
             </div>
         </div>

@@ -9,6 +9,7 @@ pub mod performance_service;
 pub mod sample_page_data;
 pub mod default_pages;
 pub mod migrate_pages;
+pub mod user_service;
 
 // Export modules for direct access
 // Services are accessed via module::service syntax

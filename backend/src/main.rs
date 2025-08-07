@@ -17,6 +17,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 use tracing::info;
+use dotenvy::dotenv;
 use tower_http::cors::CorsLayer;
 use config::Config;
 use database::{DbPool, establish_connection_pool};
@@ -48,6 +49,9 @@ pub use controllers::auth::{LoginRequest, LoginResponse, UserProfile};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load configuration
     let config = Config::new()?;
+    
+    // Load environment variables from .env file if it exists
+    let _ = dotenv();
     
     // Set up logging
     std::env::set_var("RUST_LOG", &config.rust_log);
@@ -103,6 +107,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 email: Some("admin@example.com".to_string()),
                 role: "admin".to_string(),
                 status: "active".to_string(),
+                email_verified: Some(true), // Admin is pre-verified
+                email_verification_token: None,
+                email_verification_expires_at: None,
             };
             let _user = User::create(&mut conn, demo_user)?;
             info!("Created demo user: admin with password 'admin'");
@@ -117,6 +124,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     email: None,
                     role: None,
                     status: None,
+                    email_verified: None,
+                    email_verification_token: None,
+                    email_verification_expires_at: None,
                 };
                 let _updated_user = User::update(&mut conn, admin_user.id, update_user)?;
                 info!("Updated admin user password to properly hashed version");
@@ -421,6 +431,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health))
         .route("/api/posts", get(controllers::posts::get_posts))
         .route("/api/auth/login", post(controllers::auth::login))
+        .route("/api/auth/signup", post(controllers::auth::signup))
+        .route("/api/auth/verify-email", post(controllers::auth::verify_email))
         // TODO: Re-enable rate limiting when API is stabilized
         // .layer(create_auth_rate_limiter())
         .route("/api/posts/:id", get(controllers::posts::get_post))
@@ -432,6 +444,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/pages", get(controllers::pages::get_pages))
         .route("/api/pages/:id", get(controllers::pages::get_page))
         .route("/api/pages/slug/:slug", get(controllers::pages::get_page_by_slug))
+        .route("/api/comments/public", get(controllers::comments::get_post_comments))
         .route("/api/test", get(test_endpoint));
 
     // Authenticated routes (requires valid session)
@@ -440,12 +453,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/auth/me", get(controllers::auth::get_current_user))
         .route("/api/auth/sessions", get(controllers::sessions::get_user_sessions))
         .route("/api/auth/sessions/logout-all", post(controllers::sessions::logout_all_sessions))
+        .route("/api/comments/create", post(controllers::comments::create_public_comment))
         .layer(axum_middleware::from_fn_with_state(app_services.clone(), auth_middleware_with_services));
 
     // Admin-only routes (requires admin role)
     let admin_routes = Router::new()
         .route("/api/users", get(controllers::users::get_users).post(controllers::users::create_user))
         .route("/api/users/:id", put(controllers::users::update_user).delete(controllers::users::delete_user))
+        .route("/api/users/:id/promote", put(controllers::users::promote_user))
         .route("/api/posts", post(controllers::posts::create_post))
         .route("/api/posts/:id", put(controllers::posts::update_post).delete(controllers::posts::delete_post))
         .route("/api/comments", get(controllers::comments::get_comments).post(controllers::comments::create_comment))

@@ -435,6 +435,30 @@ pub fn menu_areas_view(props: &MenuAreasViewProps) -> Html {
 // Helper functions for rendering component templates
 fn render_component_preview(component_type: &str, header_navigation: &UseStateHandle<Vec<NavigationItem>>, footer_navigation: &UseStateHandle<Vec<NavigationItem>>) -> Html {
     match component_type {
+        "Comments" => html! {
+            <div class="live-comments-preview">
+                <div class="comment-bubble">
+                    <div class="comment-avatar">
+                        <img src="https://www.gravatar.com/avatar/c5d59b67e7a7eb5b7e5e1e5e2e5e3e5e?s=32&d=identicon&r=pg" 
+                             alt="Avatar" style="width: 32px; height: 32px; border-radius: 50%;" />
+                    </div>
+                    <div class="comment-content">
+                        <div class="comment-header">
+                            <span class="comment-author">{"John Doe"}</span>
+                            <span class="comment-time">{"2 hours ago"}</span>
+                        </div>
+                        <div class="comment-text">
+                            <p>{"Great post! Really helpful content."}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="comment-form-preview">
+                    <div style="padding: 8px; background: #f5f5f5; border-radius: 8px; font-size: 12px; text-align: center; color: #666;">
+                        {"💬 Comment Form (Login Required)"}
+                    </div>
+                </div>
+            </div>
+        },
         "header" => html! {
             <div class="live-header-preview">
                 <div class="live-nav-bar">
@@ -549,6 +573,7 @@ fn get_component_title(component_type: &str) -> &'static str {
         "sidebar" => "📋 Sidebar Component",
         "modal" => "🪟 Modal Component",
         "main_container" => "📦 Container Component",
+        "Comments" => "💬 Comments Component",
         _ => "🧩 Component Template"
     }
 }
@@ -560,6 +585,7 @@ fn get_component_description(component_type: &str) -> &'static str {
         "sidebar" => "Configurable sidebar for additional navigation, widgets, and content areas",
         "modal" => "Overlay modals for forms, dialogs, and interactive content with backdrop styling",
         "main_container" => "Main content container with width, padding, and responsive layout settings",
+        "Comments" => "Interactive comment system with Gravatar avatars, text message styling, and authentication",
         _ => "Customizable component template with configurable properties"
     }
 }
@@ -571,6 +597,7 @@ fn get_component_name(component_type: &str) -> &'static str {
         "sidebar" => "Sidebar",
         "modal" => "Modal",
         "main_container" => "Container",
+        "Comments" => "Comments",
         _ => "Component"
     }
 }
@@ -589,6 +616,13 @@ fn render_component_tags(component_type: &str) -> Html {
                 <span class="property-tag">{"Full Width"}</span>
                 <span class="property-tag">{"Horizontal Layout"}</span>
                 <span class="property-tag">{"Responsive"}</span>
+            </>
+        },
+        "Comments" => html! {
+            <>
+                <span class="property-tag">{"Gravatar Avatars"}</span>
+                <span class="property-tag">{"Text Message Style"}</span>
+                <span class="property-tag">{"Authentication"}</span>
             </>
         },
         "sidebar" => html! {

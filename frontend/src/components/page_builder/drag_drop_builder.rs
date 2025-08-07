@@ -159,6 +159,13 @@ pub struct ComponentProperties {
     pub posts_list_show_date: bool,
     pub posts_list_show_excerpt: bool,
     pub posts_list_show_view_all: bool,
+    
+    // Comments specific properties
+    pub comments_enabled: bool,
+    pub comments_per_page: i32,
+    pub comments_avatar_size: i32,
+    pub comments_show_auth_prompt: bool,
+    pub comments_post_id: i32,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -202,6 +209,7 @@ pub enum ComponentType {
     Map,
     Gallery,
     PostsList,
+    Comments,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -434,6 +442,13 @@ impl Default for ComponentProperties {
             column_1_components: vec![],
             column_2_components: vec![],
             column_3_components: vec![],
+            
+            // Comments specific properties
+            comments_enabled: true,
+            comments_per_page: 20,
+            comments_avatar_size: 48,
+            comments_show_auth_prompt: true,
+            comments_post_id: 1,
         }
     }
 }
@@ -462,6 +477,7 @@ impl ComponentType {
             ComponentType::Map => "Map",
             ComponentType::Gallery => "Gallery",
             ComponentType::PostsList => "Posts List",
+            ComponentType::Comments => "Comments",
         }
     }
 
@@ -488,6 +504,7 @@ impl ComponentType {
             ComponentType::Map => "## 🗺️ Visit Our Office\n\n**Rust CMS Headquarters**\n123 Innovation Drive\nTech Valley, CA 94000\n\nOffice Hours: Monday - Friday, 9 AM - 6 PM PST\nPhone: (555) 123-4567\n\n[Interactive Map showing our location would appear here]".to_string(),
             ComponentType::Gallery => "## 🖼️ Showcase Gallery\n\nExplore examples of websites built with our CMS. From simple blogs to complex e-commerce sites, see what's possible.\n\n[Image gallery with sample websites would appear here]".to_string(),
             ComponentType::PostsList => "## 📄 Latest Posts\n\nDiscover our latest articles and insights. This dynamic list automatically displays your most recent blog posts.\n\n[This will show a list of your published posts]".to_string(),
+            ComponentType::Comments => "## 💬 Join the Conversation\n\nShare your thoughts and engage with our community. Sign in or create an account to leave your comments.\n\n[Comments section with text message style bubbles and Gravatar avatars will appear here]".to_string(),
         }
     }
 
@@ -514,6 +531,7 @@ impl ComponentType {
             ComponentType::Map => "🗺️",
             ComponentType::Gallery => "🖼️",
             ComponentType::PostsList => "📄",
+            ComponentType::Comments => "💬",
         }
     }
 }
@@ -753,6 +771,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         ComponentType::Map,
         ComponentType::Gallery,
         ComponentType::PostsList,
+        ComponentType::Comments,
     ];
 
     let on_drag_start = {
@@ -783,6 +802,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                             "Map" => ComponentType::Map,
                             "Gallery" => ComponentType::Gallery,
                             "PostsList" => ComponentType::PostsList,
+                            "Comments" => ComponentType::Comments,
                             _ => ComponentType::Text,
                         };
                         dragging_component.set(Some(component_type));
@@ -3753,6 +3773,89 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                     </div>
                                                 </>
                                             },
+                                            ComponentType::Comments => html! {
+                                                <>
+                                                    <div class="property-section">
+                                                        <h4 class="section-title">{"Comments Properties"}</h4>
+                                                        
+                                                        <div class="property-group">
+                                                            <label>{"Allow Comments"}</label>
+                                                            <select 
+                                                                value={component.properties.comments_enabled.to_string()}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                                                        on_property_update.emit((component_id.clone(), "comments_enabled".to_string(), target.value()));
+                                                                    })
+                                                                }}
+                                                            >
+                                                                <option value="true">{"Enabled"}</option>
+                                                                <option value="false">{"Disabled"}</option>
+                                                            </select>
+                                                        </div>
+                                                        
+                                                        <div class="property-group">
+                                                            <label>{"Comments Per Page"}</label>
+                                                            <select 
+                                                                value={component.properties.comments_per_page.to_string()}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                                                        on_property_update.emit((component_id.clone(), "comments_per_page".to_string(), target.value()));
+                                                                    })
+                                                                }}
+                                                            >
+                                                                <option value="10">{"10 Comments"}</option>
+                                                                <option value="20">{"20 Comments"}</option>
+                                                                <option value="50">{"50 Comments"}</option>
+                                                                <option value="100">{"100 Comments"}</option>
+                                                            </select>
+                                                        </div>
+                                                        
+                                                        <div class="property-group">
+                                                            <label>{"Show Avatar Size"}</label>
+                                                            <select 
+                                                                value={component.properties.comments_avatar_size.to_string()}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                                                        on_property_update.emit((component_id.clone(), "comments_avatar_size".to_string(), target.value()));
+                                                                    })
+                                                                }}
+                                                            >
+                                                                <option value="32">{"Small (32px)"}</option>
+                                                                <option value="48">{"Medium (48px)"}</option>
+                                                                <option value="64">{"Large (64px)"}</option>
+                                                                <option value="80">{"Extra Large (80px)"}</option>
+                                                            </select>
+                                                        </div>
+                                                        
+                                                        <div class="property-group">
+                                                            <label>{"Show Login Prompt"}</label>
+                                                            <select 
+                                                                value={component.properties.comments_show_auth_prompt.to_string()}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                                                        on_property_update.emit((component_id.clone(), "comments_show_auth_prompt".to_string(), target.value()));
+                                                                    })
+                                                                }}
+                                                            >
+                                                                <option value="true">{"Show Auth Prompt"}</option>
+                                                                <option value="false">{"Hide Auth Prompt"}</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            },
                                             _ => html! {}
                                         }}
                                         
@@ -4570,6 +4673,53 @@ fn render_component_content(component: &PageComponent) -> Html {
                         <span>{"📋 Dynamic Content"}</span>
                         <span>{"🎨 Customizable Layout"}</span>
                         <span>{"📱 Responsive Design"}</span>
+                    </div>
+                </div>
+            }
+        }
+        ComponentType::Comments => {
+            html! {
+                <div class="comments-component" style="width: 100%; padding: 20px; background: var(--public-background-primary, #ffffff); border: 2px dashed var(--public-border-light, #ddd); border-radius: 8px; text-align: center;">
+                    <div style="color: var(--public-text-secondary, #666); margin-bottom: 16px;">
+                        <span style="font-size: 48px; display: block; margin-bottom: 12px;">{"💬"}</span>
+                        <h3 style="margin: 0 0 8px 0; font-size: 18px; color: var(--public-text-primary, #333);">{"Comments Component"}</h3>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">
+                            {"Interactive comments section with text message-style bubbles and Gravatar avatars. "}
+                            {"Users can sign in and leave comments that appear here in real-time."}
+                        </p>
+                    </div>
+                    
+                    // Preview of comment bubbles
+                    <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto;">
+                        // Sample comment 1
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(45deg, #3b82f6, #1d4ed8); flex-shrink: 0;"></div>
+                            <div style="flex: 1;">
+                                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 8px 12px; border-radius: 16px 16px 16px 4px; font-size: 13px; position: relative;">
+                                    <div style="font-weight: 600; margin-bottom: 2px; color: #2c3e50;">{"Alex Johnson"}</div>
+                                    <div style="color: #374151;">{"Great article! The new features look amazing."}</div>
+                                </div>
+                                <div style="font-size: 11px; color: #6b7280; margin-top: 4px; margin-left: 12px;">{"2 hours ago"}</div>
+                            </div>
+                        </div>
+                        
+                        // Sample comment 2  
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(45deg, #10b981, #047857); flex-shrink: 0;"></div>
+                            <div style="flex: 1;">
+                                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 8px 12px; border-radius: 16px 16px 16px 4px; font-size: 13px; position: relative;">
+                                    <div style="font-weight: 600; margin-bottom: 2px; color: #2c3e50;">{"Sarah Chen"}</div>
+                                    <div style="color: #374151;">{"Can't wait to try this out on my project!"}</div>
+                                </div>
+                                <div style="font-size: 11px; color: #6b7280; margin-top: 4px; margin-left: 12px;">{"5 hours ago"}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--public-border-light, #e1e5e9);">
+                        <small style="color: var(--public-text-muted, #888); font-size: 12px;">
+                            {"💡 Comments will be interactive when published. Users can sign in/up to participate."}
+                        </small>
                     </div>
                 </div>
             }

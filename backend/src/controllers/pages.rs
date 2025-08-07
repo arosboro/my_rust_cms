@@ -109,7 +109,7 @@ pub async fn create_page(
     }
     
     validate_text_content(&page.title, 200)?;
-    validate_text_content(&page.content, 50000)?;
+    validate_text_content(&page.content, 200000)?;
     
     let mut conn = services.db_pool.get()
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
@@ -143,7 +143,7 @@ pub async fn update_page(
     }
     
     validate_text_content(&page.title, 200)?;
-    validate_text_content(&page.content, 50000)?;
+    validate_text_content(&page.content, 200000)?;
     
     let mut conn = services.db_pool.get()
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;

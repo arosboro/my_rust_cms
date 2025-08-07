@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use crate::components::admin::{AdminSidebar, AdminHeader};
 use crate::components::admin::sidebar::AdminTab;
-use crate::pages::admin::{dashboard::AdminDashboard, post_list::PostList, post_editor::PostEditor, page_builder::PageBuilder, media_library::MediaLibrary, user_management::UserManagement, comment_moderation::CommentModeration, navigation_manager::NavigationManager, template_manager::TemplateManager, analytics::Analytics, system_settings::SystemSettings, design_system::DesignSystemPage};
+use crate::pages::admin::{dashboard::AdminDashboard, post_list::PostList, post_editor::PostEditor, page_builder::PageBuilder, media_library::MediaLibrary, enhanced_user_management::EnhancedUserManagement, comment_moderation::CommentModeration, navigation_manager::NavigationManager, template_manager::TemplateManager, analytics::Analytics, system_settings::SystemSettings, design_system::DesignSystemPage};
 use crate::pages::admin::design_system::{AdminColorScheme, apply_admin_css_variables};
 use crate::services::auth_service::User;
 use crate::services::api_service::get_settings;
@@ -134,7 +134,7 @@ pub fn admin(props: &AdminProps) -> Html {
                         },
                         AdminTab::Pages => html! { <PageBuilder /> },
                         AdminTab::Media => html! { <MediaLibrary /> },
-                        AdminTab::Users => html! { <UserManagement /> },
+                        AdminTab::Users => html! { <EnhancedUserManagement /> },
                         AdminTab::Comments => html! { <CommentModeration /> },
                         AdminTab::Navigation => html! { <NavigationManager /> },
                         AdminTab::Templates => html! { <TemplateManager /> },

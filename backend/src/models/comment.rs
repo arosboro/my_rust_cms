@@ -1,13 +1,14 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use chrono::NaiveDateTime;
-use crate::schema::{comments, posts, users};
-use super::{Post, User};
+use crate::schema::{comments, posts, users, pages};
+use super::{Post, User, Page};
 
 #[derive(Debug, Serialize, Deserialize, Queryable, Selectable, Identifiable, Associations)]
 #[diesel(table_name = comments)]
 #[diesel(belongs_to(Post, foreign_key = post_id))]
 #[diesel(belongs_to(User, foreign_key = user_id))]
+#[diesel(belongs_to(Page, foreign_key = page_id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Comment {
     pub id: i32,
@@ -16,6 +17,7 @@ pub struct Comment {
     pub content: String,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub page_id: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
@@ -24,6 +26,7 @@ pub struct NewComment {
     pub post_id: Option<i32>,
     pub user_id: Option<i32>,
     pub content: String,
+    pub page_id: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, AsChangeset)]
@@ -43,6 +46,8 @@ pub struct CommentWithRelations {
     pub updated_at: Option<NaiveDateTime>,
     pub author_username: Option<String>,
     pub post_title: Option<String>,
+    pub page_id: Option<i32>,
+    pub page_title: Option<String>,
 }
 
 impl Comment {
@@ -57,6 +62,7 @@ impl Comment {
         comments::table
             .left_join(users::table.on(comments::user_id.eq(users::id.nullable())))
             .left_join(posts::table.on(comments::post_id.eq(posts::id.nullable())))
+            .left_join(pages::table.on(comments::page_id.eq(pages::id.nullable())))
             .filter(comments::id.eq(comment_id))
             .select((
                 comments::id,
@@ -67,6 +73,8 @@ impl Comment {
                 comments::updated_at,
                 users::username.nullable(),
                 posts::title.nullable(),
+                comments::page_id,
+                pages::title.nullable(),
             ))
             .first::<CommentWithRelations>(conn)
             .optional()
@@ -100,6 +108,7 @@ impl Comment {
         comments::table
             .left_join(users::table.on(comments::user_id.eq(users::id.nullable())))
             .left_join(posts::table.on(comments::post_id.eq(posts::id.nullable())))
+            .left_join(pages::table.on(comments::page_id.eq(pages::id.nullable())))
             .order(comments::created_at.desc())
             .select((
                 comments::id,
@@ -110,6 +119,8 @@ impl Comment {
                 comments::updated_at,
                 users::username.nullable(),
                 posts::title.nullable(),
+                comments::page_id,
+                pages::title.nullable(),
             ))
             .load::<CommentWithRelations>(conn)
     }
@@ -117,6 +128,13 @@ impl Comment {
     pub fn find_by_post(conn: &mut PgConnection, post_id: i32) -> Result<Vec<Self>, diesel::result::Error> {
         comments::table
             .filter(comments::post_id.eq(post_id))
+            .order(comments::created_at.asc())
+            .load::<Comment>(conn)
+    }
+
+    pub fn find_by_page(conn: &mut PgConnection, page_id: i32) -> Result<Vec<Self>, diesel::result::Error> {
+        comments::table
+            .filter(comments::page_id.eq(page_id))
             .order(comments::created_at.asc())
             .load::<Comment>(conn)
     }

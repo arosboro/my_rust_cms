@@ -18,6 +18,17 @@ pub struct SiteSettings {
     pub theme: String,
 }
 
+#[derive(Clone, PartialEq, Debug)]
+pub struct EmailSettings {
+    pub smtp_server: String,
+    pub smtp_port: String,
+    pub smtp_username: String,
+    pub smtp_password: String,
+    pub from_email: String,
+    pub from_name: String,
+    pub base_url: String,
+}
+
 #[function_component(SystemSettings)]
 pub fn system_settings() -> Html {
     // State management for all tabs
@@ -43,6 +54,20 @@ pub fn system_settings() -> Html {
         admin_button_visible: true,
         theme: "Modern".to_string(),
     });
+    
+    // Email settings state
+    let email_settings = use_state(|| EmailSettings {
+        smtp_server: "".to_string(),
+        smtp_port: "587".to_string(),
+        smtp_username: "".to_string(),
+        smtp_password: "".to_string(),
+        from_email: "".to_string(),
+        from_name: "CMS System".to_string(),
+        base_url: "http://localhost:3000".to_string(),
+    });
+    
+    // Track if email settings have been loaded
+    let email_settings_loaded = use_state(|| false);
     
     // API Callbacks for each tab
     let load_system_info = {
@@ -294,6 +319,167 @@ pub fn system_settings() -> Html {
             });
         })
     };
+
+    // Email settings save callback
+    let save_email_settings = {
+        let email_settings = email_settings.clone();
+        let saving = saving.clone();
+        let save_message = save_message.clone();
+        
+        Callback::from(move |_| {
+            let settings = (*email_settings).clone();
+            let saving = saving.clone();
+            let save_message = save_message.clone();
+            
+            saving.set(true);
+            save_message.set(None);
+            
+            wasm_bindgen_futures::spawn_local(async move {
+                web_sys::console::log_1(&format!("Saving email settings: {:?}", settings).into());
+                
+                let settings_data = vec![
+                    SettingData {
+                        key: "smtp_server".to_string(),
+                        value: settings.smtp_server,
+                        setting_type: "email".to_string(),
+                        description: Some("SMTP server hostname".to_string()),
+                    },
+                    SettingData {
+                        key: "smtp_port".to_string(),
+                        value: settings.smtp_port,
+                        setting_type: "email".to_string(),
+                        description: Some("SMTP server port".to_string()),
+                    },
+                    SettingData {
+                        key: "smtp_username".to_string(),
+                        value: settings.smtp_username,
+                        setting_type: "email".to_string(),
+                        description: Some("SMTP username".to_string()),
+                    },
+                    SettingData {
+                        key: "smtp_password".to_string(),
+                        value: settings.smtp_password,
+                        setting_type: "email".to_string(),
+                        description: Some("SMTP password".to_string()),
+                    },
+                    SettingData {
+                        key: "from_email".to_string(),
+                        value: settings.from_email,
+                        setting_type: "email".to_string(),
+                        description: Some("From email address".to_string()),
+                    },
+                    SettingData {
+                        key: "from_name".to_string(),
+                        value: settings.from_name,
+                        setting_type: "email".to_string(),
+                        description: Some("From name".to_string()),
+                    },
+                    SettingData {
+                        key: "base_url".to_string(),
+                        value: settings.base_url,
+                        setting_type: "email".to_string(),
+                        description: Some("Base URL for email links".to_string()),
+                    },
+                ];
+                
+                match update_settings(settings_data).await {
+                    Ok(_) => {
+                        saving.set(false);
+                        save_message.set(Some("Email settings saved successfully!".to_string()));
+                        web_sys::console::log_1(&"Email settings saved successfully".into());
+                    }
+                    Err(e) => {
+                        saving.set(false);
+                        save_message.set(Some(format!("Error saving email settings: {}", e)));
+                        web_sys::console::error_1(&format!("Failed to save email settings: {}", e).into());
+                    }
+                }
+                
+                // Clear message after 3 seconds
+                let save_message = save_message.clone();
+                gloo_timers::future::TimeoutFuture::new(3000).await;
+                save_message.set(None);
+            });
+        })
+    };
+
+    // Function to load email settings
+    let do_load_email_settings = {
+        let loading = loading.clone();
+        let error_message = error_message.clone();
+        let email_settings = email_settings.clone();
+        let email_settings_loaded = email_settings_loaded.clone();
+        
+        move || {
+            let loading = loading.clone();
+            let error_message = error_message.clone();
+            let email_settings = email_settings.clone();
+            let email_settings_loaded = email_settings_loaded.clone();
+            
+            // Prevent multiple simultaneous loads
+            if *loading {
+                return;
+            }
+            
+            error_message.set(None);
+            loading.set(true);
+            
+            wasm_bindgen_futures::spawn_local(async move {
+                match get_settings(Some("email")).await {
+                    Ok(settings) => {
+                        // Parse the settings and update the email_settings state
+                        let mut email_config = (*email_settings).clone();
+                        
+                        for setting in settings {
+                            match setting.setting_key.as_str() {
+                                "smtp_server" => email_config.smtp_server = setting.setting_value.unwrap_or_default(),
+                                "smtp_port" => email_config.smtp_port = setting.setting_value.unwrap_or_default(),
+                                "smtp_username" => email_config.smtp_username = setting.setting_value.unwrap_or_default(),
+                                "smtp_password" => email_config.smtp_password = setting.setting_value.unwrap_or_default(),
+                                "from_email" => email_config.from_email = setting.setting_value.unwrap_or_default(),
+                                "from_name" => email_config.from_name = setting.setting_value.unwrap_or_default(),
+                                "base_url" => email_config.base_url = setting.setting_value.unwrap_or_default(),
+                                _ => {}
+                            }
+                        }
+                        
+                        email_settings.set(email_config);
+                        email_settings_loaded.set(true);
+                        web_sys::console::log_1(&"✅ Email settings loaded successfully".into());
+                    },
+                    Err(e) => {
+                        error_message.set(Some(format!("Unable to load email settings: {}", e)));
+                        web_sys::console::warn_1(&format!("⚠️ Email settings API error: {}", e).into());
+                    }
+                }
+                loading.set(false);
+            });
+        }
+    };
+
+    // Load email settings callback for button
+    let load_email_settings = {
+        let do_load = do_load_email_settings.clone();
+        Callback::from(move |_: MouseEvent| {
+            do_load();
+        })
+    };
+    
+    // Auto-load email settings when switching to email tab
+    {
+        let active_tab = active_tab.clone();
+        let email_settings_loaded = email_settings_loaded.clone();
+        let do_load_email_settings = do_load_email_settings.clone();
+        
+        use_effect_with_deps(move |tab| {
+            if tab.as_str() == "email" && !*email_settings_loaded {
+                // Only auto-load if we haven't loaded email settings yet
+                web_sys::console::log_1(&"Auto-loading email settings for email tab".into());
+                do_load_email_settings();
+            }
+            || () // cleanup function
+        }, active_tab.clone());
+    }
     
     web_sys::console::log_1(&"Settings component with full API integration".into());
 
@@ -324,6 +510,12 @@ pub fn system_settings() -> Html {
                         onclick={let active_tab = active_tab.clone(); Callback::from(move |_| active_tab.set("site".to_string()))}
                     >
                         {"Site Configuration"}
+                    </button>
+                    <button 
+                        class={if *active_tab == "email" { "tab-button active" } else { "tab-button" }}
+                        onclick={let active_tab = active_tab.clone(); Callback::from(move |_| active_tab.set("email".to_string()))}
+                    >
+                        {"Email Settings"}
                     </button>
                     <button 
                         class={if *active_tab == "overview" { "tab-button active" } else { "tab-button" }}
@@ -519,6 +711,155 @@ pub fn system_settings() -> Html {
                                     >
                                         {if *saving { "Saving..." } else { "Save Settings" }}
                                     </button>
+                                </div>
+                            </div>
+                        },
+                        "email" => html! {
+                            <div class="settings-section">
+                                <div class="settings-header">
+                                    <h3>{"Email Configuration"}</h3>
+                                    <button 
+                                        class="btn btn-secondary"
+                                        onclick={load_email_settings.clone()}
+                                        disabled={*loading}
+                                    >
+                                        {if *loading { "Loading..." } else { if *email_settings_loaded { "Reload Settings" } else { "Load Settings" } }}
+                                    </button>
+                                </div>
+                                <p class="settings-description">{"Configure SMTP settings for sending emails including user verification and notifications."}</p>
+                                
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>{"SMTP Server"}</label>
+                                        <input 
+                                            type="text" 
+                                            value={email_settings.smtp_server.clone()}
+                                            onchange={let email_settings = email_settings.clone(); Callback::from(move |e: Event| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                let mut settings = (*email_settings).clone();
+                                                settings.smtp_server = target.value();
+                                                email_settings.set(settings);
+                                            })}
+                                            placeholder="smtp.gmail.com"
+                                        />
+                                        <small class="form-help">{"The hostname of your SMTP server"}</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>{"SMTP Port"}</label>
+                                        <input 
+                                            type="text" 
+                                            value={email_settings.smtp_port.clone()}
+                                            onchange={let email_settings = email_settings.clone(); Callback::from(move |e: Event| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                let mut settings = (*email_settings).clone();
+                                                settings.smtp_port = target.value();
+                                                email_settings.set(settings);
+                                            })}
+                                            placeholder="587"
+                                        />
+                                        <small class="form-help">{"Usually 587 for TLS or 465 for SSL"}</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>{"SMTP Username"}</label>
+                                        <input 
+                                            type="text" 
+                                            value={email_settings.smtp_username.clone()}
+                                            onchange={let email_settings = email_settings.clone(); Callback::from(move |e: Event| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                let mut settings = (*email_settings).clone();
+                                                settings.smtp_username = target.value();
+                                                email_settings.set(settings);
+                                            })}
+                                            placeholder="your-email@gmail.com"
+                                        />
+                                        <small class="form-help">{"Your email account username"}</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>{"SMTP Password"}</label>
+                                        <input 
+                                            type="password" 
+                                            value={email_settings.smtp_password.clone()}
+                                            onchange={let email_settings = email_settings.clone(); Callback::from(move |e: Event| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                let mut settings = (*email_settings).clone();
+                                                settings.smtp_password = target.value();
+                                                email_settings.set(settings);
+                                            })}
+                                            placeholder="your-app-password"
+                                        />
+                                        <small class="form-help">{"Use an app-specific password for Gmail"}</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>{"From Email"}</label>
+                                        <input 
+                                            type="email" 
+                                            value={email_settings.from_email.clone()}
+                                            onchange={let email_settings = email_settings.clone(); Callback::from(move |e: Event| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                let mut settings = (*email_settings).clone();
+                                                settings.from_email = target.value();
+                                                email_settings.set(settings);
+                                            })}
+                                            placeholder="noreply@yourdomain.com"
+                                        />
+                                        <small class="form-help">{"Email address that appears as sender"}</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>{"From Name"}</label>
+                                        <input 
+                                            type="text" 
+                                            value={email_settings.from_name.clone()}
+                                            onchange={let email_settings = email_settings.clone(); Callback::from(move |e: Event| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                let mut settings = (*email_settings).clone();
+                                                settings.from_name = target.value();
+                                                email_settings.set(settings);
+                                            })}
+                                            placeholder="CMS System"
+                                        />
+                                        <small class="form-help">{"Display name for outgoing emails"}</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>{"Base URL"}</label>
+                                        <input 
+                                            type="url" 
+                                            value={email_settings.base_url.clone()}
+                                            onchange={let email_settings = email_settings.clone(); Callback::from(move |e: Event| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                let mut settings = (*email_settings).clone();
+                                                settings.base_url = target.value();
+                                                email_settings.set(settings);
+                                            })}
+                                            placeholder="https://yourdomain.com"
+                                        />
+                                        <small class="form-help">{"Base URL for verification links in emails"}</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button 
+                                        class="btn btn-primary" 
+                                        onclick={save_email_settings.clone()}
+                                        disabled={*saving}
+                                    >
+                                        {if *saving { "Saving..." } else { "Save Email Settings" }}
+                                    </button>
+                                </div>
+                                
+                                <div class="email-info">
+                                    <h4>{"Setup Instructions"}</h4>
+                                    <ul>
+                                        <li>{"For Gmail, enable 2-factor authentication and create an App Password"}</li>
+                                        <li>{"Use port 587 for TLS encryption (recommended)"}</li>
+                                        <li>{"The Base URL should match your domain for proper email links"}</li>
+                                        <li>{"Test the configuration by creating a new user account"}</li>
+                                    </ul>
                                 </div>
                             </div>
                         },

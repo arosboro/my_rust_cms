@@ -14,6 +14,9 @@ pub struct User {
     pub created_at: Option<NaiveDateTime>,
     pub role: String,
     pub status: String,
+    pub email_verified: bool,
+    pub email_verification_token: Option<String>,
+    pub email_verification_expires_at: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
@@ -24,6 +27,9 @@ pub struct NewUser {
     pub email: Option<String>,
     pub role: String,
     pub status: String,
+    pub email_verified: Option<bool>,
+    pub email_verification_token: Option<String>,
+    pub email_verification_expires_at: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Serialize, Deserialize, AsChangeset)]
@@ -34,6 +40,9 @@ pub struct UpdateUser {
     pub email: Option<String>,
     pub role: Option<String>,
     pub status: Option<String>,
+    pub email_verified: Option<bool>,
+    pub email_verification_token: Option<String>,
+    pub email_verification_expires_at: Option<NaiveDateTime>,
 }
 
 impl User {
@@ -54,6 +63,13 @@ impl User {
     pub fn find_by_email(conn: &mut PgConnection, email: &str) -> Result<Option<Self>, diesel::result::Error> {
         users::table
             .filter(users::email.eq(email))
+            .first::<User>(conn)
+            .optional()
+    }
+
+    pub fn find_by_verification_token(conn: &mut PgConnection, token: &str) -> Result<Option<Self>, diesel::result::Error> {
+        users::table
+            .filter(users::email_verification_token.eq(token))
             .first::<User>(conn)
             .optional()
     }

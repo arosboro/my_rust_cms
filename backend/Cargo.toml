@@ -36,4 +36,10 @@ hmac = "0.12"
 base64 = "0.21"
 # Backup encryption
 aes-gcm = "0.10"
-rand = "0.8" 
+rand = "0.8"
+# Email service
+lettre = "0.11"
+# URL handling for verification links
+url = "2.4"
+# Gravatar hash generation
+md5 = "0.7" 

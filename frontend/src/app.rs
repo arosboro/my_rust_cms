@@ -9,6 +9,8 @@ use std::ops::Deref;
 pub enum AppView {
     Public,
     Login,
+    Signup,
+    VerifyEmail,
     Admin(AdminTab),
 }
 
@@ -17,6 +19,8 @@ pub enum AppRoute {
     Public(PublicPage),
     Admin(AdminTab),
     Login,
+    Signup,
+    VerifyEmail,
 }
 
 // Helper function to convert AdminTab to URL path
@@ -73,9 +77,15 @@ fn parse_current_url() -> AppRoute {
                 }
             }
 
-            // Check for login route
+            // Check for auth routes
             if location == "/login" {
                 return AppRoute::Login;
+            }
+            if location == "/signup" {
+                return AppRoute::Signup;
+            }
+            if location == "/verify-email" {
+                return AppRoute::VerifyEmail;
             }
             
             // Handle public routes
@@ -122,6 +132,8 @@ pub fn app() -> Html {
         AppRoute::Public(_) => AppView::Public,
         AppRoute::Admin(tab) => AppView::Admin(tab.clone()),
         AppRoute::Login => AppView::Login,
+        AppRoute::Signup => AppView::Signup,
+        AppRoute::VerifyEmail => AppView::VerifyEmail,
     };
 
     // TODO: Add browser back/forward navigation support later
@@ -312,6 +324,16 @@ pub fn app() -> Html {
                     AppView::Login => html! {
                         <div>
                             <crate::pages::auth::Login on_login_success={on_login_success} />
+                        </div>
+                    },
+                    AppView::Signup => html! {
+                        <div>
+                            <crate::pages::auth::SignupPage />
+                        </div>
+                    },
+                    AppView::VerifyEmail => html! {
+                        <div>
+                            <crate::pages::auth::VerifyEmailPage />
                         </div>
                     },
                     AppView::Admin(admin_tab) => html! {

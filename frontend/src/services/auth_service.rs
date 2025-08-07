@@ -11,12 +11,26 @@ pub struct LoginCredentials {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct SignupCredentials {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct VerifyEmailRequest {
+    pub token: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct User {
     pub id: i32,
     pub username: String,
     pub email: String,
     pub role: String,
     pub status: String,
+    pub email_verified: Option<bool>,
+    pub created_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
@@ -125,6 +139,62 @@ pub fn is_authenticated() -> bool {
 #[allow(dead_code)]
 pub async fn verify_token() -> Result<User, AuthError> {
     get_current_user().await
+}
+
+pub async fn signup(credentials: &SignupCredentials) -> Result<serde_json::Value, AuthError> {
+    let response = Request::post(&format!("{}/auth/signup", API_BASE_URL))
+        .json(credentials)
+        .map_err(|e| AuthError::NetworkError(e.to_string()))?
+        .send()
+        .await
+        .map_err(|e| AuthError::NetworkError(e.to_string()))?;
+
+    if response.status() == 200 {
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| AuthError::ParseError(e.to_string()))?;
+        Ok(result)
+    } else if response.status() == 409 {
+        Err(AuthError::ServerError("Username or email already exists".to_string()))
+    } else if response.status() == 400 {
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Invalid input".to_string());
+        Err(AuthError::ServerError(error_text))
+    } else {
+        Err(AuthError::ServerError(format!("HTTP {}", response.status())))
+    }
+}
+
+pub async fn verify_email(token: &str) -> Result<serde_json::Value, AuthError> {
+    let request = VerifyEmailRequest {
+        token: token.to_string(),
+    };
+
+    let response = Request::post(&format!("{}/auth/verify-email", API_BASE_URL))
+        .json(&request)
+        .map_err(|e| AuthError::NetworkError(e.to_string()))?
+        .send()
+        .await
+        .map_err(|e| AuthError::NetworkError(e.to_string()))?;
+
+    if response.status() == 200 {
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| AuthError::ParseError(e.to_string()))?;
+        Ok(result)
+    } else if response.status() == 400 {
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Invalid or expired token".to_string());
+        Err(AuthError::ServerError(error_text))
+    } else {
+        Err(AuthError::ServerError(format!("HTTP {}", response.status())))
+    }
 }
 
 #[allow(dead_code)]

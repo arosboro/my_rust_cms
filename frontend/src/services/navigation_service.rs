@@ -379,4 +379,18 @@ pub async fn toggle_component_template(id: i32) -> Result<ComponentTemplate, Nav
         }
         Err(e) => Err(NavigationServiceError::NetworkError(e.to_string())),
     }
+}
+
+pub async fn check_comments_enabled() -> bool {
+    // Check if Comments component template is active
+    match get_component_templates().await {
+        Ok(templates) => {
+            templates
+                .iter()
+                .find(|template| template.component_type == "Comments")
+                .map(|template| template.is_active)
+                .unwrap_or(true) // Default to enabled if not found
+        }
+        Err(_) => true, // Default to enabled on error
+    }
 } 

@@ -52,6 +52,28 @@ pub struct Comment {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct CommentWithGravatar {
+    pub id: i32,
+    pub post_id: Option<i32>,
+    pub page_id: Option<i32>,
+    pub user_id: Option<i32>,
+    pub content: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub author_username: Option<String>,
+    pub author_email: Option<String>,
+    pub gravatar_url: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct PublicCommentRequest {
+    pub content: String,
+    pub post_id: Option<i32>,
+    pub page_id: Option<i32>,
+    pub user_id: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct MediaItem {
     pub id: Option<i32>,
     #[serde(rename = "file_name")]
@@ -375,6 +397,60 @@ pub async fn delete_comment(id: i32) -> Result<(), ApiServiceError> {
 
     if response.status() == 204 {
         Ok(())
+    } else {
+        Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
+    }
+}
+
+// Public Comments API
+pub async fn get_post_comments(post_id: i32) -> Result<Vec<CommentWithGravatar>, ApiServiceError> {
+    let response = Request::get(&format!("{}/comments/public?post_id={}", API_BASE_URL, post_id))
+        .send()
+        .await
+        .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;
+
+    if response.status() == 200 {
+        let comments: Vec<CommentWithGravatar> = response
+            .json()
+            .await
+            .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+        Ok(comments)
+    } else {
+        Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
+    }
+}
+
+pub async fn get_page_comments(page_id: i32) -> Result<Vec<CommentWithGravatar>, ApiServiceError> {
+    let response = Request::get(&format!("{}/comments/public?page_id={}", API_BASE_URL, page_id))
+        .send()
+        .await
+        .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;
+
+    if response.status() == 200 {
+        let comments: Vec<CommentWithGravatar> = response
+            .json()
+            .await
+            .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+        Ok(comments)
+    } else {
+        Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
+    }
+}
+
+pub async fn create_public_comment(comment_request: &PublicCommentRequest) -> Result<CommentWithGravatar, ApiServiceError> {
+    let response = create_authenticated_request("POST", &format!("{}/comments/create", API_BASE_URL))?
+        .json(comment_request)
+        .map_err(|e| ApiServiceError::ParseError(e.to_string()))?
+        .send()
+        .await
+        .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;
+
+    if response.status() == 201 {
+        let created_comment: CommentWithGravatar = response
+            .json()
+            .await
+            .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+        Ok(created_comment)
     } else {
         Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
     }

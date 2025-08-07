@@ -26,6 +26,7 @@ diesel::table! {
         content -> Text,
         created_at -> Nullable<Timestamp>,
         updated_at -> Nullable<Timestamp>,
+        page_id -> Nullable<Int4>,
     }
 }
 
@@ -221,10 +222,14 @@ diesel::table! {
         created_at -> Nullable<Timestamp>,
         role -> Varchar,
         status -> Varchar,
+        email_verified -> Bool,
+        email_verification_token -> Nullable<Varchar>,
+        email_verification_expires_at -> Nullable<Timestamp>,
     }
 }
 
 diesel::joinable!(builder_components -> templates (template_id));
+diesel::joinable!(comments -> pages (page_id));
 diesel::joinable!(comments -> posts (post_id));
 diesel::joinable!(comments -> users (user_id));
 diesel::joinable!(component_events -> components (component_id));

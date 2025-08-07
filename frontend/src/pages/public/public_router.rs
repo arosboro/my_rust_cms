@@ -1,8 +1,9 @@
 use yew::prelude::*;
-use crate::components::{PublicLayout, PostsListWidget};
+use crate::components::{PublicLayout, PostsListWidget, CommentsSection};
 use crate::services::page_service::{get_page_by_slug, Page};
 use crate::components::page_builder::{PageComponent, ComponentType};
 use crate::services::default_pages::{get_default_home_page_components, get_default_posts_page_components};
+use crate::services::navigation_service::check_comments_enabled;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum PublicPage {
@@ -116,7 +117,7 @@ fn home_content(_props: &HomeContentProps) -> Html {
                 <div class="error">{"Error loading page: "}{error_msg}</div>
             } else if let Some(ref page_data) = *page {
                 <div class="page-content">
-                    {render_page_builder_content(&page_data.content)}
+                    {render_page_builder_content_with_navigation_and_context(&page_data.content, None, page_data.id)}
                 </div>
             } else {
                 <div class="error">{"Page not found"}</div>
@@ -179,7 +180,7 @@ fn posts_content(props: &PostsContentProps) -> Html {
                 <div class="error">{"Error loading page: "}{error_msg}</div>
             } else if let Some(ref page_data) = *page {
                 <div class="page-content">
-                    {render_page_builder_content_with_navigation(&page_data.content, Some(props.on_navigate.clone()))}
+                    {render_page_builder_content_with_navigation_and_context(&page_data.content, Some(props.on_navigate.clone()), page_data.id)}
                 </div>
             } else {
                 <div class="error">{"Page not found"}</div>
@@ -254,6 +255,9 @@ fn post_content(props: &PostContentProps) -> Html {
                     <div class="post-content">
                         <p>{post_data.content.clone()}</p>
                     </div>
+                    
+                    // Add comments section for posts (if enabled)
+                    <ConditionalCommentsSection post_id={Some(post_data.id.unwrap_or(0))} page_id={None} />
                 </>
             } else {
                 <div class="error">{"Post not found"}</div>
@@ -317,7 +321,7 @@ fn page_content(props: &PageContentProps) -> Html {
                         }
                     </div>
                     <div class="page-content">
-                        {render_page_builder_content(&page_data.content)}
+                        {render_page_builder_content_with_navigation_and_context(&page_data.content, None, page_data.id)}
                     </div>
                 </>
             } else {
@@ -334,6 +338,11 @@ fn render_page_builder_content(content: &str) -> Html {
 
 // Function to parse and render page builder content with navigation callback
 fn render_page_builder_content_with_navigation(content: &str, on_navigate: Option<Callback<PublicPage>>) -> Html {
+    render_page_builder_content_with_navigation_and_context(content, on_navigate, None)
+}
+
+// Function to parse and render page builder content with navigation callback and page context
+fn render_page_builder_content_with_navigation_and_context(content: &str, on_navigate: Option<Callback<PublicPage>>, page_id: Option<i32>) -> Html {
     web_sys::console::log_1(&format!("render_page_builder_content_with_navigation called with content length: {}", content.len()).into());
     web_sys::console::log_1(&format!("Content starts with '[': {}", content.starts_with('[')).into());
     
@@ -347,7 +356,7 @@ fn render_page_builder_content_with_navigation(content: &str, on_navigate: Optio
                 html! {
                     <div class="page-builder-content">
                         {components.iter().map(|component| {
-                            render_component_content_public_with_navigation(component, on_navigate.clone())
+                            render_component_content_public_with_context(component, on_navigate.clone(), page_id)
                         }).collect::<Html>()}
                     </div>
                 }
@@ -373,7 +382,7 @@ fn render_page_builder_content_with_navigation(content: &str, on_navigate: Optio
                 html! {
                     <div class="page-builder-content">
                         {components.iter().map(|component| {
-                            render_component_content_public_with_navigation(component, on_navigate.clone())
+                            render_component_content_public_with_context(component, on_navigate.clone(), page_id)
                         }).collect::<Html>()}
                     </div>
                 }
@@ -405,6 +414,11 @@ fn render_page_builder_content_with_navigation(content: &str, on_navigate: Optio
 
 // Comprehensive component renderer for public pages with navigation callback
 pub fn render_component_content_public_with_navigation(component: &PageComponent, on_navigate: Option<Callback<PublicPage>>) -> Html {
+    render_component_content_public_with_context(component, on_navigate, None)
+}
+
+// Enhanced component renderer with page context for Comments component
+pub fn render_component_content_public_with_context(component: &PageComponent, on_navigate: Option<Callback<PublicPage>>, page_id: Option<i32>) -> Html {
     match component.component_type {
         ComponentType::Text => {
             html! {
@@ -662,13 +676,13 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
                         html! {
                             <div class="nested-components">
                                 {component.properties.nested_components.iter().map(|nested_comp| {
-                                    render_component_content_public_with_navigation(nested_comp, on_navigate.clone())
+                                    render_component_content_public_with_context(nested_comp, on_navigate.clone(), page_id)
                                 }).collect::<Html>()}
                             </div>
                         }
                     } else {
                         // Fallback to content-based rendering for backward compatibility
-                        render_nested_content(&component.content, on_navigate.clone())
+                        render_nested_content(&component.content, on_navigate.clone(), page_id)
                     }}
                 </div>
             }
@@ -685,12 +699,12 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
                     <div class="component two-column-component" style={column_style}>
                         <div class="column">
                             {component.properties.column_1_components.iter().map(|nested_comp| {
-                                render_component_content_public_with_navigation(nested_comp, on_navigate.clone())
+                                render_component_content_public_with_context(nested_comp, on_navigate.clone(), page_id)
                             }).collect::<Html>()}
                         </div>
                         <div class="column">
                             {component.properties.column_2_components.iter().map(|nested_comp| {
-                                render_component_content_public_with_navigation(nested_comp, on_navigate.clone())
+                                render_component_content_public_with_context(nested_comp, on_navigate.clone(), page_id)
                             }).collect::<Html>()}
                         </div>
                     </div>
@@ -708,10 +722,10 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
                             return html! {
                                 <div class="component two-column-component" style={column_style}>
                                     <div class="column">
-                                        {render_nested_content(column1_content, on_navigate.clone())}
+                                        {render_nested_content(column1_content, on_navigate.clone(), page_id)}
                                     </div>
                                     <div class="column">
-                                        {render_nested_content(column2_content, on_navigate.clone())}
+                                        {render_nested_content(column2_content, on_navigate.clone(), page_id)}
                                     </div>
                                 </div>
                             }
@@ -748,17 +762,17 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
                     <div class="component three-column-component" style={column_style}>
                         <div class="column">
                             {component.properties.column_1_components.iter().map(|nested_comp| {
-                                render_component_content_public_with_navigation(nested_comp, on_navigate.clone())
+                                render_component_content_public_with_context(nested_comp, on_navigate.clone(), page_id)
                             }).collect::<Html>()}
                         </div>
                         <div class="column">
                             {component.properties.column_2_components.iter().map(|nested_comp| {
-                                render_component_content_public_with_navigation(nested_comp, on_navigate.clone())
+                                render_component_content_public_with_context(nested_comp, on_navigate.clone(), page_id)
                             }).collect::<Html>()}
                         </div>
                         <div class="column">
                             {component.properties.column_3_components.iter().map(|nested_comp| {
-                                render_component_content_public_with_navigation(nested_comp, on_navigate.clone())
+                                render_component_content_public_with_context(nested_comp, on_navigate.clone(), page_id)
                             }).collect::<Html>()}
                         </div>
                     </div>
@@ -777,13 +791,13 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
                             return html! {
                                 <div class="component three-column-component" style={column_style}>
                                     <div class="column">
-                                        {render_nested_content(column1_content, on_navigate.clone())}
+                                        {render_nested_content(column1_content, on_navigate.clone(), page_id)}
                                     </div>
                                     <div class="column">
-                                        {render_nested_content(column2_content, on_navigate.clone())}
+                                        {render_nested_content(column2_content, on_navigate.clone(), page_id)}
                                     </div>
                                     <div class="column">
-                                        {render_nested_content(column3_content, on_navigate.clone())}
+                                        {render_nested_content(column3_content, on_navigate.clone(), page_id)}
                                     </div>
                                 </div>
                             }
@@ -1113,11 +1127,33 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
                 </div>
             }
         }
+        ComponentType::Comments => {
+            // Render comments component with proper context (page vs post)
+            let show_auth_prompt = component.properties.comments_show_auth_prompt;
+            
+            // If we have a page_id context, use it for page comments
+            // Otherwise, fall back to post_id from component properties
+            let (final_post_id, final_page_id) = if let Some(current_page_id) = page_id {
+                (None, Some(current_page_id))
+            } else {
+                (Some(component.properties.comments_post_id), None)
+            };
+            
+            html! {
+                <div class="component comments-component" style={format_component_styles(&component.styles)}>
+                    <CommentsSection 
+                        post_id={final_post_id}
+                        page_id={final_page_id}
+                        show_auth_prompt={show_auth_prompt}
+                    />
+                </div>
+            }
+        }
     }
 }
 
 // Helper function to render nested components or markdown content
-fn render_nested_content(content: &str, on_navigate: Option<Callback<PublicPage>>) -> Html {
+fn render_nested_content(content: &str, on_navigate: Option<Callback<PublicPage>>, page_id: Option<i32>) -> Html {
     // Try to parse as JSON array of nested components first
     if content.trim().starts_with('[') && content.trim().ends_with(']') {
         match serde_json::from_str::<Vec<PageComponent>>(content) {
@@ -1125,7 +1161,7 @@ fn render_nested_content(content: &str, on_navigate: Option<Callback<PublicPage>
                 return html! {
                     <div class="nested-components">
                         {nested_components.iter().map(|component| {
-                            render_component_content_public_with_navigation(component, on_navigate.clone())
+                            render_component_content_public_with_context(component, on_navigate.clone(), page_id)
                         }).collect::<Html>()}
                     </div>
                 }
@@ -1171,4 +1207,46 @@ pub fn format_component_styles(styles: &crate::components::page_builder::Compone
         styles.text_decoration,
         styles.text_transform
     )
+}
+
+#[derive(Properties, PartialEq)]
+struct ConditionalCommentsSectionProps {
+    pub post_id: Option<i32>,
+    pub page_id: Option<i32>,
+}
+
+#[function_component(ConditionalCommentsSection)]
+fn conditional_comments_section(props: &ConditionalCommentsSectionProps) -> Html {
+    let comments_enabled = use_state(|| true);
+    let loading = use_state(|| true);
+
+    {
+        let comments_enabled = comments_enabled.clone();
+        let loading = loading.clone();
+        
+        use_effect_with_deps(move |_| {
+            wasm_bindgen_futures::spawn_local(async move {
+                let enabled = check_comments_enabled().await;
+                comments_enabled.set(enabled);
+                loading.set(false);
+            });
+            || ()
+        }, ());
+    }
+
+    if *loading {
+        return html! { <div></div> }; // Don't show anything while loading
+    }
+
+    if *comments_enabled {
+        html! {
+            <CommentsSection 
+                post_id={props.post_id}
+                page_id={props.page_id}
+                show_auth_prompt={true}
+            />
+        }
+    } else {
+        html! { <div></div> } // Comments are disabled via template
+    }
 } 

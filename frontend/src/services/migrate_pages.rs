@@ -189,6 +189,13 @@ fn default_properties() -> ComponentProperties {
         column_1_components: vec![],
         column_2_components: vec![],
         column_3_components: vec![],
+        
+        // Comments specific properties
+        comments_enabled: true,
+        comments_per_page: 20,
+        comments_avatar_size: 48,
+        comments_show_auth_prompt: true,
+        comments_post_id: 1,
     }
 }
 

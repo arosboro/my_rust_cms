@@ -3,6 +3,7 @@ pub mod dashboard;
 pub mod post_list;
 pub mod post_editor;
 pub mod user_management;
+pub mod enhanced_user_management;
 pub mod comment_moderation;
 pub mod media_library;
 pub mod page_builder;
@@ -22,6 +23,7 @@ pub use post_list::PostList;
 pub use post_editor::PostEditor;
 #[allow(unused_imports)]
 pub use user_management::UserManagement;
+pub use enhanced_user_management::EnhancedUserManagement;
 #[allow(unused_imports)]
 pub use comment_moderation::CommentModeration;
 #[allow(unused_imports)]
