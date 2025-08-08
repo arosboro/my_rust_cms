@@ -988,22 +988,99 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                     <h4>{"Sidebar Layout"}</h4>
                                                     <div class="property-item">
                                                         <label>{"Position"}</label>
-                                                        <select class="property-select">
-                                                            <option value="left">{"Left Side"}</option>
-                                                            <option value="right" selected=true>{"Right Side"}</option>
-                                                            <option value="both">{"Both Sides"}</option>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("position".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <>
+                                                                    <option value="left" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("position").and_then(|v| v.as_str()))
+                                                                            .unwrap_or("right") == "left"
+                                                                    }>{"Left Side"}</option>
+                                                                    <option value="right" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("position").and_then(|v| v.as_str()))
+                                                                            .unwrap_or("right") == "right"
+                                                                    }>{"Right Side"}</option>
+                                                                    <option value="both" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("position").and_then(|v| v.as_str()))
+                                                                            .unwrap_or("right") == "both"
+                                                                    }>{"Both Sides"}</option>
+                                                            </>
                                                         </select>
                                                     </div>
                                                     <div class="property-item">
                                                         <label>{"Width"}</label>
-                                                        <input type="text" value="300px" class="property-input" />
+                                                        <input 
+                                                            type="text" 
+                                                            class="property-input"
+                                                            value={{
+                                                                if let Some(t) = (*editing_template).as_ref() {
+                                                                    t.template_data.get("width").and_then(|v| v.as_str()).unwrap_or("300px").to_string()
+                                                                } else { "300px".to_string() }
+                                                            }}
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("width".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                            onblur={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: FocusEvent| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("width".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
                                                     </div>
                                                     <div class="property-item">
-                                                        <label>{"Sticky Behavior"}</label>
-                                                        <select class="property-select">
-                                                            <option value="none">{"Normal Flow"}</option>
-                                                            <option value="sticky" selected=true>{"Sticky"}</option>
-                                                            <option value="fixed">{"Fixed Position"}</option>
+                                                        <label>{"Sticky"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        let is_sticky = value == "true";
+                                                                        update_template_data.emit(("sticky".to_string(), serde_json::Value::Bool(is_sticky)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <>
+                                                                    <option value="true" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("sticky").and_then(|v| v.as_bool()))
+                                                                            .unwrap_or(true)
+                                                                    }>{"Sticky"}</option>
+                                                                    <option value="false" selected={
+                                                                        !((*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("sticky").and_then(|v| v.as_bool()))
+                                                                            .unwrap_or(true))
+                                                                    }>{"Not Sticky"}</option>
+                                                            </>
                                                         </select>
                                                     </div>
                                                 </div>
@@ -1012,16 +1089,66 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                     <h4>{"Mobile Behavior"}</h4>
                                                     <div class="property-item">
                                                         <label>{"Mobile Display"}</label>
-                                                        <select class="property-select">
-                                                            <option value="hidden" selected=true>{"Hidden"}</option>
-                                                            <option value="bottom">{"Move to Bottom"}</option>
-                                                            <option value="drawer">{"Slide-out Drawer"}</option>
-                                                            <option value="accordion">{"Collapsible"}</option>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("mobile_display".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <>
+                                                                    <option value="hidden" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("mobile_display").and_then(|v| v.as_str()))
+                                                                            .unwrap_or("hidden") == "hidden"
+                                                                    }>{"Hidden"}</option>
+                                                                    <option value="bottom" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("mobile_display").and_then(|v| v.as_str()))
+                                                                            .unwrap_or("hidden") == "bottom"
+                                                                    }>{"Move to Bottom"}</option>
+                                                                    <option value="drawer" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("mobile_display").and_then(|v| v.as_str()))
+                                                                            .unwrap_or("hidden") == "drawer"
+                                                                    }>{"Slide-out Drawer"}</option>
+                                                                    <option value="accordion" selected={
+                                                                        (*editing_template)
+                                                                            .as_ref()
+                                                                            .and_then(|t| t.template_data.get("mobile_display").and_then(|v| v.as_str()))
+                                                                            .unwrap_or("hidden") == "accordion"
+                                                                    }>{"Collapsible"}</option>
+                                                            </>
                                                         </select>
                                                     </div>
                                                     <div class="property-item">
                                                         <label>{"Mobile Breakpoint"}</label>
-                                                        <input type="text" value="768px" class="property-input" />
+                                                        <input 
+                                                            type="text" 
+                                                            class="property-input"
+                                                            value={{
+                                                                if let Some(t) = (*editing_template).as_ref() {
+                                                                    t.template_data.get("mobile_breakpoint").and_then(|v| v.as_str()).unwrap_or("768px").to_string()
+                                                                } else { "768px".to_string() }
+                                                            }}
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("mobile_breakpoint".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
                                                     </div>
                                                 </div>
 
@@ -1031,19 +1158,19 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                         <label>{"Default Sections"}</label>
                                                         <div class="checkbox-list">
                                                             <label class="checkbox-item">
-                                                                <input type="checkbox" checked=true />
+                                                                <input type="checkbox" disabled=true checked=true />
                                                                 <span>{"Navigation Links"}</span>
                                                             </label>
                                                             <label class="checkbox-item">
-                                                                <input type="checkbox" checked=true />
+                                                                <input type="checkbox" disabled=true checked=true />
                                                                 <span>{"Recent Posts"}</span>
                                                             </label>
                                                             <label class="checkbox-item">
-                                                                <input type="checkbox" />
+                                                                <input type="checkbox" disabled=true />
                                                                 <span>{"Categories"}</span>
                                                             </label>
                                                             <label class="checkbox-item">
-                                                                <input type="checkbox" />
+                                                                <input type="checkbox" disabled=true />
                                                                 <span>{"Archives"}</span>
                                                             </label>
                                                         </div>
@@ -1262,32 +1389,38 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                     >
                                         {format!("Customize {}", get_component_name(&template.component_type))}
                                     </button>
-                                    <div class="toggle-switch">
-                                        <input 
-                                            type="checkbox"
-                                            id={format!("toggle-{}", template.id)}
-                                            checked={template.is_active}
-                                            onchange={{
-                                                let template_id = template.id;
-                                                let on_template_toggled = on_template_toggled.clone();
-                                                Callback::from(move |_| {
-                                                    let on_template_toggled = on_template_toggled.clone();
-                                                    wasm_bindgen_futures::spawn_local(async move {
-                                                        match toggle_component_template(template_id).await {
-                                                            Ok(updated_template) => {
-                                                                on_template_toggled.emit(updated_template);
-                                                                log::info!("✅ Toggled component template {}", template_id);
-                                                            }
-                                                            Err(e) => {
-                                                                log::error!("❌ Failed to toggle component template: {:?}", e);
-                                                            }
-                                                        }
-                                                    });
-                                                })
-                                            }}
-                                        />
-                                        <label for={format!("toggle-{}", template.id)} class="slider"></label>
-                                    </div>
+                                    {
+                                        if template.component_type != "sidebar" {
+                                            html! {
+                                                <div class="toggle-switch">
+                                                    <input 
+                                                        type="checkbox"
+                                                        id={format!("toggle-{}", template.id)}
+                                                        checked={template.is_active}
+                                                        onchange={{
+                                                            let template_id = template.id;
+                                                            let on_template_toggled = on_template_toggled.clone();
+                                                            Callback::from(move |_| {
+                                                                let on_template_toggled = on_template_toggled.clone();
+                                                                wasm_bindgen_futures::spawn_local(async move {
+                                                                    match toggle_component_template(template_id).await {
+                                                                        Ok(updated_template) => {
+                                                                            on_template_toggled.emit(updated_template);
+                                                                            log::info!("✅ Toggled component template {}", template_id);
+                                                                        }
+                                                                        Err(e) => {
+                                                                            log::error!("❌ Failed to toggle component template: {:?}", e);
+                                                                        }
+                                                                    }
+                                                                });
+                                                            })
+                                                        }}
+                                                    />
+                                                    <label for={format!("toggle-{}", template.id)} class="slider"></label>
+                                                </div>
+                                            }
+                                        } else { html!{} }
+                                    }
                                 </div>
                             </div>
                         </div>

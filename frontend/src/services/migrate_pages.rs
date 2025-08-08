@@ -82,6 +82,10 @@ fn default_properties() -> ComponentProperties {
 
         container_max_width: "1200px".to_string(),
         container_align: "center".to_string(),
+        // Sidebar
+        sidebar_position: "right".to_string(),
+        sidebar_width: "300px".to_string(),
+        sidebar_sticky: true,
         divider_style: "solid".to_string(),
         divider_thickness: "1px".to_string(),
         divider_color: "var(--public-border-light, #ddd)".to_string(),

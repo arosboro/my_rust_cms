@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::components::markdown_editor::MarkdownEditor;
 use crate::components::MediaPicker;
 use crate::services::api_service::MediaItem;
+use crate::services::navigation_service::{get_component_templates, get_all_component_templates_admin, ComponentTemplate};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct PageComponent {
@@ -63,6 +64,10 @@ pub struct ComponentProperties {
     // Container specific
     pub container_max_width: String,
     pub container_align: String,
+    // Sidebar specific
+    pub sidebar_position: String, // "left" | "right"
+    pub sidebar_width: String,    // e.g., "300px"
+    pub sidebar_sticky: bool,
     
     // Divider specific
     pub divider_style: String,
@@ -195,6 +200,7 @@ pub enum ComponentType {
     Button,
     Link,
     Container,
+    Sidebar,
     TwoColumn,
     ThreeColumn,
     Hero,
@@ -414,6 +420,10 @@ impl Default for ComponentProperties {
             // Container specific
             container_max_width: "1200px".to_string(),
             container_align: "center".to_string(),
+            // Sidebar specific
+            sidebar_position: "right".to_string(),
+            sidebar_width: "300px".to_string(),
+            sidebar_sticky: true,
             
             // Divider specific
             divider_style: "solid".to_string(),
@@ -463,6 +473,7 @@ impl ComponentType {
             ComponentType::Button => "Button",
             ComponentType::Link => "Link",
             ComponentType::Container => "Container",
+            ComponentType::Sidebar => "Sidebar Layout",
             ComponentType::TwoColumn => "Two Columns",
             ComponentType::ThreeColumn => "Three Columns",
             ComponentType::Hero => "Hero Section",
@@ -490,6 +501,7 @@ impl ComponentType {
             ComponentType::Button => "[Start Building 🚀](/page-builder)".to_string(),
             ComponentType::Link => "[Link Text](#)".to_string(),
             ComponentType::Container => "This container holds structured content that can be easily customized and styled to match your brand.".to_string(),
+            ComponentType::Sidebar => "Sidebar layout with configurable left/right position and width.".to_string(),
             ComponentType::TwoColumn => "## 🚀 Performance First\n\nBuilt with Rust for maximum performance and reliability. Our backend delivers lightning-fast responses and handles high traffic with ease.\n\n## 🎨 Beautiful Design\n\nModern, responsive design that looks great on all devices. Clean interfaces and intuitive user experience.".to_string(),
             ComponentType::ThreeColumn => "## ⚡ Fast\n\nRust-powered backend delivers exceptional performance\n\n## 🔒 Secure\n\nBuilt-in security features and best practices\n\n## 🎯 Flexible\n\nCustomizable components and layouts".to_string(),
             ComponentType::Hero => "# Welcome to the Future of Content Management\n\nExperience the power of Rust-based CMS with WebAssembly frontend. Create stunning websites with our drag-and-drop page builder and comprehensive content management tools.\n\n[Get Started →](/register) [View Demo →](/demo)".to_string(),
@@ -517,6 +529,7 @@ impl ComponentType {
             ComponentType::Button => "🔘",
             ComponentType::Link => "🔗",
             ComponentType::Container => "📦",
+            ComponentType::Sidebar => "📚",
             ComponentType::TwoColumn => "📑",
             ComponentType::ThreeColumn => "📊",
             ComponentType::Hero => "🌟",
@@ -717,6 +730,28 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
     let media_picker_target_component = use_state(|| None::<String>);
     let media_picker_images_only = use_state(|| true);
 
+    // Cache component templates for default config lookups (e.g., Sidebar)
+    let component_templates = use_state(Vec::<ComponentTemplate>::new);
+
+    {
+        let component_templates = component_templates.clone();
+        use_effect_with_deps(move |_| {
+            wasm_bindgen_futures::spawn_local(async move {
+                // Prefer admin endpoint (includes inactive templates and latest edits)
+                match get_all_component_templates_admin().await {
+                    Ok(templates) => component_templates.set(templates),
+                    Err(_) => {
+                        // Fallback to public endpoint
+                        if let Ok(public_templates) = get_component_templates().await {
+                            component_templates.set(public_templates);
+                        }
+                    }
+                }
+            });
+            || ()
+        }, ());
+    }
+
     // Load initial components when provided (always update, even if empty)
     {
         let components = components.clone();
@@ -757,6 +792,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         ComponentType::Button,
         ComponentType::Link,
         ComponentType::Container,
+        ComponentType::Sidebar,
         ComponentType::TwoColumn,
         ComponentType::ThreeColumn,
         ComponentType::Hero,
@@ -788,6 +824,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                             "Button" => ComponentType::Button,
                             "Link" => ComponentType::Link,
                             "Container" => ComponentType::Container,
+                            "Sidebar" => ComponentType::Sidebar,
                             "TwoColumn" => ComponentType::TwoColumn,
                             "ThreeColumn" => ComponentType::ThreeColumn,
                             "Hero" => ComponentType::Hero,
@@ -847,7 +884,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
             column_drag_over.set(None);
             
             if let Some(component_type) = (*dragging_component).clone() {
-            let new_component = PageComponent {
+            let mut new_component = PageComponent {
                 id: uuid::Uuid::new_v4().to_string(),
                 component_type: component_type.clone(),
                 content: component_type.default_content(),
@@ -855,6 +892,24 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                 position: Position::default(),
                 properties: ComponentProperties::default(),
             };
+            if let ComponentType::Sidebar = component_type {
+                if let Some(sidebar) = (*component_templates)
+                    .iter()
+                    .find(|t| t.component_type == "sidebar")
+                {
+                    if let Some(obj) = sidebar.template_data.as_object() {
+                        if let Some(pos) = obj.get("position").and_then(|v| v.as_str()) {
+                            new_component.properties.sidebar_position = pos.to_string();
+                        }
+                        if let Some(width) = obj.get("width").and_then(|v| v.as_str()) {
+                            new_component.properties.sidebar_width = width.to_string();
+                        }
+                        if let Some(sticky) = obj.get("sticky").and_then(|v| v.as_bool()) {
+                            new_component.properties.sidebar_sticky = sticky;
+                        }
+                    }
+                }
+            }
             
             let mut current_components = (*components).clone();
             current_components.push(new_component);
@@ -1007,7 +1062,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                         ComponentType::Video => {
                             component.properties.video_url = format!("http://localhost:8081{}", media_item.url);
                         }
-                        _ => {}
+                        ComponentType::Sidebar | _ => {}
                     }
                 }
                 components.set(current_components);
@@ -3202,7 +3257,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                                 } else {
                                                                     html! {
                                                                         <div>
-                                                                            {component.properties.column_1_components.iter().enumerate().map(|(index, nested_comp)| {
+                                                                            {component.properties.column_1_components.iter().enumerate().map(|(_, nested_comp)| {
                                                                                 html! {
                                                                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px; border: 1px solid #ddd; border-radius: 2px; margin-bottom: 2px; background: white; font-size: 10px;">
                                                                                         <span>{format!("{}", nested_comp.component_type.display_name())}</span>
@@ -3235,7 +3290,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                                 } else {
                                                                     html! {
                                                                         <div>
-                                                                            {component.properties.column_2_components.iter().enumerate().map(|(index, nested_comp)| {
+                                                                            {component.properties.column_2_components.iter().enumerate().map(|(_, nested_comp)| {
                                                                                 html! {
                                                                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px; border: 1px solid #ddd; border-radius: 2px; margin-bottom: 2px; background: white; font-size: 10px;">
                                                                                         <span>{format!("{}", nested_comp.component_type.display_name())}</span>
@@ -3268,7 +3323,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                                 } else {
                                                                     html! {
                                                                         <div>
-                                                                            {component.properties.column_3_components.iter().enumerate().map(|(index, nested_comp)| {
+                                                                            {component.properties.column_3_components.iter().enumerate().map(|(_, nested_comp)| {
                                                                                 html! {
                                                                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px; border: 1px solid #ddd; border-radius: 2px; margin-bottom: 2px; background: white; font-size: 10px;">
                                                                                         <span>{format!("{}", nested_comp.component_type.display_name())}</span>
@@ -3979,6 +4034,36 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
 
 fn render_component_content(component: &PageComponent) -> Html {
     match component.component_type {
+        ComponentType::Sidebar => {
+            let is_left = component.properties.sidebar_position == "left";
+            let sticky_style = if component.properties.sidebar_sticky { "position: sticky; top: 16px;" } else { "" };
+            let style = if is_left {
+                format!("display: grid; grid-template-columns: {w} 1fr; gap: 16px;", w = component.properties.sidebar_width)
+            } else {
+                format!("display: grid; grid-template-columns: 1fr {w}; gap: 16px;", w = component.properties.sidebar_width)
+            };
+            html! {
+                <div class="component-sidebar" style={style}>
+                    if is_left {
+                        <aside class="sidebar-rail" style={format!("border: 2px dashed #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9; {}", sticky_style)}>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 8px; text-align: center;">{"Sidebar (Left)"}</div>
+                            <div class="sidebar-preview"><div class="sidebar-item" style="font-size: 12px; color: #777;">{"Navigation, Recent Posts, etc. (Template)"}</div></div>
+                        </aside>
+                        <div class="sidebar-body" style="min-height: 120px; border: 1px dashed #ccc; border-radius: 8px; padding: 16px; background: white;">
+                            {"Page Content Area"}
+                        </div>
+                    } else {
+                        <div class="sidebar-body" style="min-height: 120px; border: 1px dashed #ccc; border-radius: 8px; padding: 16px; background: white;">
+                            {"Page Content Area"}
+                        </div>
+                        <aside class="sidebar-rail" style={format!("border: 2px dashed #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9; {}", sticky_style)}>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 8px; text-align: center;">{"Sidebar (Right)"}</div>
+                            <div class="sidebar-preview"><div class="sidebar-item" style="font-size: 12px; color: #777;">{"Navigation, Recent Posts, etc. (Template)"}</div></div>
+                        </aside>
+                    }
+                </div>
+            }
+        }
         ComponentType::Text | ComponentType::Heading | ComponentType::Subheading => {
             // Render as markdown
             let parser = pulldown_cmark::Parser::new(&component.content);
@@ -5085,6 +5170,163 @@ fn render_component_content_with_drop_zones(
     on_component_delete: Callback<String>
 ) -> Html {
     match component.component_type {
+        ComponentType::Sidebar => {
+            // Both columns are droppable. Map columns based on sidebar position.
+            let is_left = component.properties.sidebar_position == "left";
+            let container_id = component.id.clone();
+
+            // Determine which logical columns map to column-1 / column-2
+            let (sidebar_col, body_col) = if is_left { ("column-1", "column-2") } else { ("column-2", "column-1") };
+
+            // Drag-over checks
+            let is_drag_over_sidebar = match (*column_drag_over).as_ref() {
+                Some((id, col)) if id == &container_id && col == sidebar_col => true,
+                _ => false,
+            };
+            let is_drag_over_body = match (*column_drag_over).as_ref() {
+                Some((id, col)) if id == &container_id && col == body_col => true,
+                _ => false,
+            };
+
+            // Handlers: sidebar column
+            let on_drop_sidebar = {
+                let on_nested_drop = on_nested_drop.clone();
+                let container_id = container_id.clone();
+                let sidebar_col = sidebar_col.to_string();
+                Callback::from(move |e: DragEvent| {
+                    e.prevent_default();
+                    e.stop_propagation();
+                    on_nested_drop.emit((container_id.clone(), sidebar_col.clone()));
+                })
+            };
+            let on_drag_over_sidebar = {
+                let column_drag_over = column_drag_over.clone();
+                let container_id = container_id.clone();
+                let sidebar_col = sidebar_col.to_string();
+                Callback::from(move |e: DragEvent| {
+                    e.prevent_default();
+                    e.stop_propagation();
+                    column_drag_over.set(Some((container_id.clone(), sidebar_col.clone())));
+                })
+            };
+            let on_drag_leave_sidebar = {
+                let column_drag_over = column_drag_over.clone();
+                Callback::from(move |e: DragEvent| {
+                    e.stop_propagation();
+                    column_drag_over.set(None);
+                })
+            };
+
+            // Handlers: body column
+            let on_drop_body = {
+                let on_nested_drop = on_nested_drop.clone();
+                let container_id = container_id.clone();
+                let body_col = body_col.to_string();
+                Callback::from(move |e: DragEvent| {
+                    e.prevent_default();
+                    e.stop_propagation();
+                    on_nested_drop.emit((container_id.clone(), body_col.clone()));
+                })
+            };
+            let on_drag_over_body = {
+                let column_drag_over = column_drag_over.clone();
+                let container_id = container_id.clone();
+                let body_col = body_col.to_string();
+                Callback::from(move |e: DragEvent| {
+                    e.prevent_default();
+                    e.stop_propagation();
+                    column_drag_over.set(Some((container_id.clone(), body_col.clone())));
+                })
+            };
+            let on_drag_leave_body = {
+                let column_drag_over = column_drag_over.clone();
+                Callback::from(move |e: DragEvent| {
+                    e.stop_propagation();
+                    column_drag_over.set(None);
+                })
+            };
+
+            // Styles
+            let drop_zone_style_sidebar = if is_drag_over_sidebar {
+                "min-height: 60px; border: 2px dashed #007bff; border-radius: 4px; padding: 8px; background: #e3f2fd; display: flex; align-items: center; justify-content: center; color: #007bff; font-style: italic; font-weight: 500; box-shadow: 0 0 8px rgba(0,123,255,0.3);"
+            } else {
+                "min-height: 60px; border: 1px dashed #ccc; border-radius: 4px; padding: 8px; background: white; display: flex; align-items: center; justify-content: center; color: #666; font-style: italic;"
+            };
+            let drop_zone_style_body = if is_drag_over_body {
+                "min-height: 60px; border: 2px dashed #007bff; border-radius: 4px; padding: 8px; background: #e3f2fd; display: flex; align-items: center; justify-content: center; color: #007bff; font-style: italic; font-weight: 500; box-shadow: 0 0 8px rgba(0,123,255,0.3);"
+            } else {
+                "min-height: 60px; border: 1px dashed #ccc; border-radius: 4px; padding: 8px; background: white; display: flex; align-items: center; justify-content: center; color: #666; font-style: italic;"
+            };
+            let grid_style = if is_left {
+                format!("display: grid; grid-template-columns: {} 1fr; gap: 16px;", component.properties.sidebar_width)
+            } else {
+                format!("display: grid; grid-template-columns: 1fr {}; gap: 16px;", component.properties.sidebar_width)
+            };
+            let sticky_style = if component.properties.sidebar_sticky { "position: sticky; top: 16px;" } else { "" };
+
+            // Column references for rendering children
+            let (col1_children, col2_children) = (&component.properties.column_1_components, &component.properties.column_2_components);
+
+            html! {
+                <div class="component-sidebar" style={grid_style}>
+                    // Left column
+                    <div class="sidebar-col-1">
+                        <div class="column-drop-zone"
+                             style={if sidebar_col == "column-1" { drop_zone_style_sidebar } else { drop_zone_style_body }}
+                             ondragover={if sidebar_col == "column-1" { on_drag_over_sidebar.clone() } else { on_drag_over_body.clone() }}
+                             ondragleave={if sidebar_col == "column-1" { on_drag_leave_sidebar.clone() } else { on_drag_leave_body.clone() }}
+                             ondrop={if sidebar_col == "column-1" { on_drop_sidebar.clone() } else { on_drop_body.clone() }}
+                        >
+                            {if col1_children.is_empty() { html! { <div class="drop-placeholder">{"Drop here"}</div> } } else {
+                                html! { <div class="nested-components">{col1_children.iter().map(|nested_comp| {
+                                    render_selectable_nested_component(
+                                        nested_comp,
+                                        &selected_component,
+                                        &on_component_click,
+                                        &on_component_edit,
+                                        &on_component_duplicate,
+                                        &on_component_delete,
+                                    )
+                                }).collect::<Html>()}</div> }
+                            }}
+                        </div>
+                        if is_left {
+                            <div class="sidebar-rail-meta" style={format!("margin-top: 8px; {}", sticky_style)}>
+                                <div style="font-size: 12px; color: #666; text-align: center;">{"Sidebar (Left)"}</div>
+                            </div>
+                        }
+                    </div>
+
+                    // Right column
+                    <div class="sidebar-col-2">
+                        <div class="column-drop-zone"
+                             style={if sidebar_col == "column-2" { drop_zone_style_sidebar } else { drop_zone_style_body }}
+                             ondragover={if sidebar_col == "column-2" { on_drag_over_sidebar.clone() } else { on_drag_over_body.clone() }}
+                             ondragleave={if sidebar_col == "column-2" { on_drag_leave_sidebar.clone() } else { on_drag_leave_body.clone() }}
+                             ondrop={if sidebar_col == "column-2" { on_drop_sidebar.clone() } else { on_drop_body.clone() }}
+                        >
+                            {if col2_children.is_empty() { html! { <div class="drop-placeholder">{"Drop here"}</div> } } else {
+                                html! { <div class="nested-components">{col2_children.iter().map(|nested_comp| {
+                                    render_selectable_nested_component(
+                                        nested_comp,
+                                        &selected_component,
+                                        &on_component_click,
+                                        &on_component_edit,
+                                        &on_component_duplicate,
+                                        &on_component_delete,
+                                    )
+                                }).collect::<Html>()}</div> }
+                            }}
+                        </div>
+                        if !is_left {
+                            <div class="sidebar-rail-meta" style={format!("margin-top: 8px; {}", sticky_style)}>
+                                <div style="font-size: 12px; color: #666; text-align: center;">{"Sidebar (Right)"}</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
         ComponentType::Container => {
             let container_id = component.id.clone();
             let is_drag_over = (*container_drag_over).as_ref() == Some(&container_id);

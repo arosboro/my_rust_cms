@@ -420,6 +420,32 @@ pub fn render_component_content_public_with_navigation(component: &PageComponent
 // Enhanced component renderer with page context for Comments component
 pub fn render_component_content_public_with_context(component: &PageComponent, on_navigate: Option<Callback<PublicPage>>, page_id: Option<i32>) -> Html {
     match component.component_type {
+        ComponentType::Sidebar => {
+            // Render a left/right two-column layout wrapper for public view
+            let is_left = component.properties.sidebar_position == "left";
+            let grid_style = if is_left {
+                format!("display: grid; grid-template-columns: {} 1fr; gap: 16px; {}", component.properties.sidebar_width, format_component_styles(&component.styles))
+            } else {
+                format!("display: grid; grid-template-columns: 1fr {}; gap: 16px; {}", component.properties.sidebar_width, format_component_styles(&component.styles))
+            };
+            let rail = html! {
+                <aside class="sidebar-rail" style="border: 1px solid #eee; border-radius: 8px; padding: 12px; background: #fafafa;">
+                    <div style="font-size: 12px; color: #666; margin-bottom: 8px; text-align: center;">{"Sidebar"}</div>
+                </aside>
+            };
+            let body_children = if is_left { &component.properties.column_2_components } else { &component.properties.column_1_components };
+            html! {
+                <div class="component sidebar-layout" style={grid_style}>
+                    { if is_left { rail.clone() } else { html!{} } }
+                    <div class="page-body">
+                        {body_children.iter().map(|nested_comp| {
+                            render_component_content_public_with_context(nested_comp, on_navigate.clone(), page_id)
+                        }).collect::<Html>()}
+                    </div>
+                    { if !is_left { rail } else { html!{} } }
+                </div>
+            }
+        }
         ComponentType::Text => {
             html! {
                 <div class="component text-component" style={format_component_styles(&component.styles)}>
