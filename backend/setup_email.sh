@@ -30,8 +30,8 @@ export FROM_EMAIL="$FROM_EMAIL"
 read -p "From Name (sender name, default: CMS System): " FROM_NAME
 export FROM_NAME="${FROM_NAME:-CMS System}"
 
-read -p "Base URL (default: http://localhost:3000): " BASE_URL
-export BASE_URL="${BASE_URL:-http://localhost:3000}"
+read -p "Base URL (default: http://localhost:8080): " BASE_URL
+export BASE_URL="${BASE_URL:-http://localhost:8080}"
 
 echo ""
 echo "Email configuration set:"

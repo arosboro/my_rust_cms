@@ -128,7 +128,7 @@ pub async fn upload_media(
 pub async fn delete_media(
     State(services): State<AppServices>, 
     Path(id): Path<i32>
-) -> Result<ResponseJson<serde_json::Value>, AppError> {
+) -> Result<StatusCode, AppError> {
     let mut conn = services.db_pool.get()
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
     
@@ -150,8 +150,5 @@ pub async fn delete_media(
         }
     }
     
-    Ok(ResponseJson(serde_json::json!({
-        "success": true,
-        "message": "Media deleted successfully"
-    })))
+    Ok(StatusCode::NO_CONTENT)
 }

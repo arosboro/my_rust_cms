@@ -51,14 +51,14 @@ fn generate_gravatar_url(email: &str, size: u32) -> String {
 
 /// Get all comments (admin only)
 /// 
-/// Returns a list of all comments in the system.
+/// Returns a list of all comments in the system with author information.
 /// Requires admin authentication.
 pub async fn get_comments(
     State(services): State<AppServices>
-) -> Result<ResponseJson<Vec<Comment>>, AppError> {
+) -> Result<ResponseJson<Vec<crate::models::comment::CommentWithRelations>>, AppError> {
     let mut conn = services.db_pool.get()
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-    let comments = Comment::list(&mut conn)?;
+    let comments = Comment::list_with_relations(&mut conn)?;
     Ok(ResponseJson(comments))
 }
 

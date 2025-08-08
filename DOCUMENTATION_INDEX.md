@@ -30,6 +30,15 @@ This document provides an overview of all documentation files in the Rust CMS pr
 - File upload security
 - Production deployment security checklist
 
+### [DOCKER_README.md](./DOCKER_README.md) ✅ **Current**
+**Purpose**: Complete Docker setup and deployment guide  
+**Contents**:
+- Docker installation instructions
+- Development and production configurations
+- Helper scripts usage
+- Container management commands
+- Environment setup and best practices
+
 ## 🔐 Backend Security Documentation
 
 ### [backend/AUTHENTICATION_ANALYSIS.md](./backend/AUTHENTICATION_ANALYSIS.md) ✅ **Updated**
@@ -73,6 +82,7 @@ This document provides an overview of all documentation files in the Rust CMS pr
 | README.md | ✅ Current | Latest | Complete |
 | RAYDT-STACK.md | ✅ Current | Latest | Complete |
 | SECURITY.md | ✅ Updated | Latest | Complete |
+| DOCKER_README.md | ✅ Current | Latest | Complete |
 | AUTHENTICATION_ANALYSIS.md | ✅ Updated | Latest | Complete |
 | PASSWORD_SECURITY_ANALYSIS.md | ✅ Current | Latest | Complete |
 | SESSION_SIGNING_ENHANCEMENT.md | ✅ Current | Latest | Complete |
@@ -104,14 +114,20 @@ All documentation follows these standards:
 
 **For Developers Getting Started**:
 1. Start with [README.md](./README.md)
-2. Review [RAYDT-STACK.md](./RAYDT-STACK.md) for architecture
-3. Check [SECURITY.md](./SECURITY.md) for security overview
+2. Set up with [DOCKER_README.md](./DOCKER_README.md)
+3. Review [RAYDT-STACK.md](./RAYDT-STACK.md) for architecture
+4. Check [SECURITY.md](./SECURITY.md) for security overview
 
 **For Security Review**:
 1. [SECURITY.md](./SECURITY.md) - Overall security features
 2. [backend/AUTHENTICATION_ANALYSIS.md](./backend/AUTHENTICATION_ANALYSIS.md) - Auth decisions
 3. [backend/PASSWORD_SECURITY_ANALYSIS.md](./backend/PASSWORD_SECURITY_ANALYSIS.md) - Password security
 4. [backend/SESSION_SIGNING_ENHANCEMENT.md](./backend/SESSION_SIGNING_ENHANCEMENT.md) - Token signing
+
+**For Deployment & DevOps**:
+1. [DOCKER_README.md](./DOCKER_README.md) - Docker setup and deployment
+2. [SECURITY.md](./SECURITY.md) - Production security checklist
+3. [README.md](./README.md) - Environment configuration
 
 **For Technical Implementation**:
 1. [RAYDT-STACK.md](./RAYDT-STACK.md) - Stack overview

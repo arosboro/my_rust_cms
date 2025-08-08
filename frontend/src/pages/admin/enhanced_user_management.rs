@@ -1,5 +1,6 @@
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::{window, InputEvent};
 use crate::services::user_service::{get_users, create_user, promote_user, delete_user, CreateUserRequest};
 use crate::services::auth_service::{User, AuthError};
 use crate::components::simple_notification::SimpleNotification;
@@ -40,7 +41,23 @@ impl Default for UserForm {
 pub fn enhanced_user_management() -> Html {
     let users = use_state(Vec::<User>::new);
     let loading = use_state(|| true);
-    let current_view = use_state(|| UserManagementView::List);
+    
+    // Initialize view based on current URL
+    let initial_view = if let Some(window) = window() {
+        if let Ok(pathname) = window.location().pathname() {
+            if pathname == "/admin/users/create" {
+                UserManagementView::Create
+            } else {
+                UserManagementView::List
+            }
+        } else {
+            UserManagementView::List
+        }
+    } else {
+        UserManagementView::List
+    };
+    
+    let current_view = use_state(|| initial_view);
     let user_form = use_state(UserForm::default);
     let form_loading = use_state(|| false);
     let notification = use_state(|| None::<(String, NotificationType)>);
@@ -99,6 +116,13 @@ pub fn enhanced_user_management() -> Html {
         Callback::from(move |_| {
             user_form.set(UserForm::default());
             current_view.set(UserManagementView::Create);
+            
+            // Update URL
+            if let Some(window) = window() {
+                if let Ok(history) = window.history() {
+                    let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some("/admin/users/create"));
+                }
+            }
         })
     };
 
@@ -178,6 +202,13 @@ pub fn enhanced_user_management() -> Html {
                         notification.set(Some(("User created successfully".to_string(), NotificationType::Success)));
                         current_view.set(UserManagementView::List);
                         reload_users.emit(());
+                        
+                        // Update URL back to list
+                        if let Some(window) = window() {
+                            if let Ok(history) = window.history() {
+                                let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some("/admin/users"));
+                            }
+                        }
                     }
                     Err(AuthError::ServerError(msg)) => {
                         notification.set(Some((msg, NotificationType::Error)));
@@ -195,12 +226,19 @@ pub fn enhanced_user_management() -> Html {
         let current_view = current_view.clone();
         Callback::from(move |_| {
             current_view.set(UserManagementView::List);
+            
+            // Update URL back to list
+            if let Some(window) = window() {
+                if let Ok(history) = window.history() {
+                    let _ = history.push_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some("/admin/users"));
+                }
+            }
         })
     };
 
     let on_username_change = {
         let user_form = user_form.clone();
-        Callback::from(move |e: Event| {
+        Callback::from(move |e: InputEvent| {
             let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
             let mut form = (*user_form).clone();
             form.username = target.value();
@@ -210,7 +248,7 @@ pub fn enhanced_user_management() -> Html {
 
     let on_email_change = {
         let user_form = user_form.clone();
-        Callback::from(move |e: Event| {
+        Callback::from(move |e: InputEvent| {
             let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
             let mut form = (*user_form).clone();
             form.email = target.value();
@@ -220,7 +258,7 @@ pub fn enhanced_user_management() -> Html {
 
     let on_password_change = {
         let user_form = user_form.clone();
-        Callback::from(move |e: Event| {
+        Callback::from(move |e: InputEvent| {
             let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
             let mut form = (*user_form).clone();
             form.password = target.value();
@@ -442,7 +480,7 @@ pub fn enhanced_user_management() -> Html {
                                 type="text"
                                 id="username"
                                 value={(*user_form).username.clone()}
-                                onchange={on_username_change}
+                                oninput={on_username_change}
                                 placeholder="Enter username"
                                 required=true
                                 disabled={*form_loading}
@@ -455,7 +493,7 @@ pub fn enhanced_user_management() -> Html {
                                 type="email"
                                 id="email"
                                 value={(*user_form).email.clone()}
-                                onchange={on_email_change}
+                                oninput={on_email_change}
                                 placeholder="Enter email (optional)"
                                 disabled={*form_loading}
                             />
@@ -467,7 +505,7 @@ pub fn enhanced_user_management() -> Html {
                                 type="password"
                                 id="password"
                                 value={(*user_form).password.clone()}
-                                onchange={on_password_change}
+                                oninput={on_password_change}
                                 placeholder="Enter password"
                                 required=true
                                 disabled={*form_loading}

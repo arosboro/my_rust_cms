@@ -48,6 +48,13 @@ impl Page {
             .optional()
     }
 
+    pub fn find_by_slug(conn: &mut PgConnection, slug_value: &str) -> Result<Option<Self>, diesel::result::Error> {
+        pages::table
+            .filter(pages::slug.eq(slug_value))
+            .first::<Page>(conn)
+            .optional()
+    }
+
     pub fn create(conn: &mut PgConnection, new_page: NewPage) -> Result<Self, diesel::result::Error> {
         diesel::insert_into(pages::table)
             .values(&new_page)

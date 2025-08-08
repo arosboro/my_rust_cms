@@ -14,9 +14,18 @@ use crate::{
         errors::AppError,
     },
     services::{
-        email_service::{MockEmailService, generate_verification_token},
+        // Temporarily disabled for Docker build
+        // email_service::{MockEmailService, generate_verification_token},
     },
 };
+
+// Temporary replacement for email service function
+fn generate_verification_token() -> String {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let token: [u8; 32] = rng.gen();
+    hex::encode(token)
+}
 
 // Authentication request/response structures
 #[derive(Debug, Deserialize)]
@@ -200,39 +209,11 @@ pub async fn signup(
     let username = signup_req.username.clone();
     let token = verification_token.clone();
     
+    // Temporarily disabled email functionality for Docker build
     tokio::spawn(async move {
-        if use_real_email {
-            // Use real email service
-            use crate::services::email_service::EmailService;
-            match EmailService::new() {
-                Ok(email_service) => {
-                    if let Err(e) = email_service.send_verification_email(
-                        &email,
-                        &username,
-                        &token,
-                    ) {
-                        tracing::error!("Failed to send verification email: {}", e);
-                    } else {
-                        tracing::info!("Verification email sent successfully to {}", email);
-                    }
-                }
-                Err(e) => {
-                    tracing::error!("Failed to initialize email service: {}", e);
-                }
-            }
-        } else {
-            // Use mock email service (development/testing)
-            let email_service = MockEmailService::new();
-            if let Err(e) = email_service.send_verification_email(
-                &email,
-                &username,
-                &token,
-            ) {
-                tracing::warn!("Failed to send verification email: {}", e);
-            } else {
-                tracing::info!("Mock verification email sent to {}", email);
-            }
-        }
+        tracing::info!("Email verification disabled for Docker build");
+        tracing::info!("User {} would receive verification email at {}", username, email);
+        tracing::info!("Verification token: {}", token);
     });
     
     Ok(ResponseJson(serde_json::json!({

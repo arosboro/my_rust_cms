@@ -115,7 +115,7 @@ Production-grade PostgreSQL database with comprehensive schema:
 - **🦀 Backend**: Rust + Axum + Diesel + Tower + PostgreSQL
 - **🎨 Frontend**: Rust + Yew + WebAssembly + CSS3
 - **🔧 Build Tools**: Cargo workspace + Trunk + wasm-bindgen
-- **🐳 Deployment**: Docker + Docker Compose
+- **🐳 Deployment**: Docker + Docker Compose with helper scripts
 - **🧪 Testing**: Comprehensive test suite with WASM testing
 
 ### Project Structure
@@ -141,6 +141,7 @@ my_rust_cms/
 ├── 📁 static/               # Static assets
 ├── 🐳 docker-compose.yml    # Development environment
 ├── 🐳 Dockerfile           # Production deployment
+├── 🐳 DOCKER_README.md     # Docker setup and deployment guide
 └── 📚 RAYDT-STACK.md       # Architecture documentation
 ```
 
@@ -230,12 +231,18 @@ Before you begin, ensure you have the following installed:
 
 #### Option 2: Docker Compose (Recommended)
 
+For complete Docker setup and deployment instructions, see **[DOCKER_README.md](./DOCKER_README.md)**.
+
+**Quick Start with Docker:**
 ```bash
+# Copy environment template
+cp docker.env.example .env
+
 # Start entire stack with PostgreSQL
-docker-compose up -d
+./docker-dev.sh up
 
 # View logs
-docker-compose logs -f
+./docker-dev.sh logs
 ```
 
 Access the application at `http://localhost:8080`
@@ -373,18 +380,19 @@ curl -X POST http://localhost:8081/api/media/upload \
 
 #### Using Docker (Recommended)
 
-1. **Build the production image**:
+For complete Docker deployment instructions, see **[DOCKER_README.md](./DOCKER_README.md)**.
 
-   ```bash
-      docker build -t my-rust-cms .
-   ```
+**Quick Production Setup:**
+```bash
+# Create production environment
+cp docker.env.example .env.production
 
-2. **Run with Docker Compose**:
+# Deploy to production
+./docker-prod.sh deploy
 
-   ```bash
-   # Update docker-compose.yml for production
-      docker-compose -f docker-compose.prod.yml up -d
-   ```
+# Monitor production
+./docker-prod.sh logs
+```
 
 #### Environment Configuration
 
@@ -695,9 +703,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **🐛 Issues**: [GitHub Issues](https://github.com/yourusername/my_rust_cms/issues)
 - **💬 Discussions**: [GitHub Discussions](https://github.com/yourusername/my_rust_cms/discussions)
-- **📚 Documentation**: [Full Documentation](./docs/)
+- **📚 Documentation**: [Documentation Index](./DOCUMENTATION_INDEX.md)
+- **🐳 Docker Setup**: [Docker Guide](./DOCKER_README.md)
 - **🏗️ RAYDT Stack**: [Learn More](./RAYDT-STACK.md)
-- **🧩 Components**: [Nested Component Guide](./docs/nested-components.md)
+- **🔒 Security**: [Security Guide](./SECURITY.md)
 
 ---
 

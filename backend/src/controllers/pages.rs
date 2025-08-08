@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Path, Json},
+    extract::{State, Path, Json, Extension},
     response::Json as ResponseJson,
     http::StatusCode,
 };
@@ -9,6 +9,7 @@ use crate::{
     middleware::{
         validation::validate_text_content,
         errors::AppError,
+        auth::AuthenticatedUser,
     },
 };
 
@@ -81,17 +82,10 @@ pub async fn get_page_by_slug(
     let mut conn = services.db_pool.get()
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
     
-    // Since database doesn't have slug field, we need to search by generating slugs from titles
-    let pages = Page::list(&mut conn)?;
-    
-    for page in pages {
-        let frontend_page = FrontendPage::from(page);
-        if frontend_page.slug == slug {
-            return Ok(ResponseJson(frontend_page));
-        }
-    }
-    
-    Err(AppError::NotFound("Page not found".to_string()))
+    let normalized_slug = slug.trim().to_lowercase();
+    let page = Page::find_by_slug(&mut conn, &normalized_slug)?
+        .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+    Ok(ResponseJson(FrontendPage::from(page)))
 }
 
 /// Create a new page (admin only)
@@ -100,6 +94,7 @@ pub async fn get_page_by_slug(
 /// Content is sanitized and validated for security.
 /// Requires admin authentication.
 pub async fn create_page(
+    Extension(auth_user): Extension<AuthenticatedUser>,
     State(services): State<AppServices>, 
     Json(page): Json<FrontendPage>
 ) -> Result<(StatusCode, ResponseJson<FrontendPage>), AppError> {
@@ -114,12 +109,29 @@ pub async fn create_page(
     let mut conn = services.db_pool.get()
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
     
+    // Generate slug if missing and normalize
+    let mut slug_value = if page.slug.trim().is_empty() {
+        page.title.trim().to_lowercase().replace(' ', "-")
+    } else {
+        page.slug.trim().to_lowercase().replace(' ', "-")
+    };
+    // collapse consecutive dashes
+    while slug_value.contains("--") { slug_value = slug_value.replace("--", "-"); }
+
+    // Default status
+    let status_value = if page.status.trim().is_empty() { "draft".to_string() } else { page.status.trim().to_string() };
+
+    // Pre-check unique slug
+    if let Ok(Some(_)) = Page::find_by_slug(&mut conn, &slug_value) {
+        return Err(AppError::ConflictError("Slug already exists".to_string()));
+    }
+
     let new_page = NewPage {
         title: page.title.trim().to_string(),
         content: page.content.trim().to_string(),
-        user_id: Some(2), // Using admin user ID (should get from auth in production)
-        slug: page.slug.trim().to_string(),
-        status: page.status.trim().to_string(),
+        user_id: Some(auth_user.id),
+        slug: slug_value,
+        status: status_value,
     };
     
     let created_page = Page::create(&mut conn, new_page)?;
@@ -152,13 +164,27 @@ pub async fn update_page(
     let _existing_page = Page::find_by_id(&mut conn, id)?
         .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
     
+    // Normalize slug and default status
+    let mut slug_value = if page.slug.trim().is_empty() {
+        page.title.trim().to_lowercase().replace(' ', "-")
+    } else {
+        page.slug.trim().to_lowercase().replace(' ', "-")
+    };
+    while slug_value.contains("--") { slug_value = slug_value.replace("--", "-"); }
+    let status_value = if page.status.trim().is_empty() { "draft".to_string() } else { page.status.trim().to_string() };
+
+    // If slug changed, ensure uniqueness (excluding this id)
+    if let Ok(Some(existing)) = Page::find_by_slug(&mut conn, &slug_value) {
+        if existing.id != id { return Err(AppError::ConflictError("Slug already exists".to_string())); }
+    }
+
     let update_page = UpdatePage {
         title: Some(page.title.trim().to_string()),
         content: Some(page.content.trim().to_string()),
         user_id: None,
         updated_at: Some(chrono::Utc::now().naive_utc()),
-        slug: Some(page.slug.trim().to_string()),
-        status: Some(page.status.trim().to_string()),
+        slug: Some(slug_value),
+        status: Some(status_value),
     };
     
     let updated_page = Page::update(&mut conn, id, update_page)?;

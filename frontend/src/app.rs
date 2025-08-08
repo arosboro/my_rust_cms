@@ -50,7 +50,7 @@ fn path_to_admin_tab(path: &str) -> Option<AdminTab> {
         "/admin/posts/create" => Some(AdminTab::PostCreate),
         "/admin/pages" => Some(AdminTab::Pages),
         "/admin/media" => Some(AdminTab::Media),
-        "/admin/users" => Some(AdminTab::Users),
+        "/admin/users" | "/admin/users/create" => Some(AdminTab::Users),
         "/admin/comments" => Some(AdminTab::Comments),
         "/admin/navigation" => Some(AdminTab::Navigation),
         "/admin/templates" => Some(AdminTab::Templates),

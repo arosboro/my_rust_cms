@@ -52,6 +52,20 @@ pub struct Comment {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct CommentWithRelations {
+    pub id: Option<i32>,
+    pub post_id: Option<i32>,
+    pub user_id: Option<i32>,
+    pub content: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub author_username: Option<String>,
+    pub post_title: Option<String>,
+    pub page_id: Option<i32>,
+    pub page_title: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct CommentWithGravatar {
     pub id: i32,
     pub post_id: Option<i32>,
@@ -350,6 +364,23 @@ pub async fn get_comments() -> Result<Vec<Comment>, ApiServiceError> {
     }
 }
 
+pub async fn get_comments_with_relations() -> Result<Vec<CommentWithRelations>, ApiServiceError> {
+    let response = create_authenticated_request("GET", &format!("{}/comments", API_BASE_URL))?
+        .send()
+        .await
+        .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;
+
+    if response.status() == 200 {
+        let comments: Vec<CommentWithRelations> = response
+            .json()
+            .await
+            .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+        Ok(comments)
+    } else {
+        Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
+    }
+}
+
 #[allow(dead_code)]
 pub async fn create_comment(comment: &Comment) -> Result<Comment, ApiServiceError> {
     let response = Request::post(&format!("{}/comments", API_BASE_URL))
@@ -495,7 +526,7 @@ pub async fn create_media(media: &MediaItem) -> Result<MediaItem, ApiServiceErro
 }
 
 pub async fn delete_media(id: i32) -> Result<(), ApiServiceError> {
-    let response = Request::delete(&format!("{}/media/{}", API_BASE_URL, id))
+    let response = create_authenticated_request("DELETE", &format!("{}/media/{}", API_BASE_URL, id))?
         .send()
         .await
         .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;

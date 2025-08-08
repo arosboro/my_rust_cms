@@ -73,7 +73,7 @@ services:
     image: adminer:4.8.1
     container_name: rustcms_adminer
     ports:
-      - "8081:8080"
+      - "8082:8080"
     environment:
       - ADMINER_DEFAULT_SERVER=postgres
     networks:
