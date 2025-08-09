@@ -132,7 +132,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         }
     };
 
-    // Helper function to get template styles
+    // Helper function to get template styles (safe subset for public UI)
     let get_component_style = {
         let component_templates = component_templates.clone();
         move |component_type: &str| -> String {
@@ -141,19 +141,99 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 let mut styles = Vec::new();
                 
                 if let Some(height) = template.template_data.get("height").and_then(|v| v.as_str()) {
-                    styles.push(format!("height: {}", height));
+                    if component_type == "header" {
+                        let mut h = height.to_string();
+                        if let Some(stripped) = h.strip_suffix("px") {
+                            if let Ok(px) = stripped.trim().parse::<i32>() {
+                                if px < 110 { h = "110px".to_string(); }
+                            }
+                        }
+                        styles.push(format!("height: {}", h));
+                    } else {
+                        styles.push(format!("height: {}", height));
+                    }
+                } else if component_type == "header" {
+                    styles.push("height: 110px".to_string());
                 }
                 
-                if let Some(position) = template.template_data.get("position").and_then(|v| v.as_str()) {
-                    styles.push(format!("position: {}", position));
+                // Only allow position overrides for non-header components to avoid layout breaks
+                if component_type != "header" {
+                    if let Some(position) = template.template_data.get("position").and_then(|v| v.as_str()) {
+                        styles.push(format!("position: {}", position));
+                    }
                 }
                 
-                if let Some(background) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
-                    styles.push(format!("background-color: {}", background));
+                // Support both background (gradients/images) and background_color
+                if component_type == "header" {
+                    // For header, set background directly; coerce white to black per default theme requirement
+                    if let Some(mut bg) = template.template_data.get("background").and_then(|v| v.as_str()) {
+                        if bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
+                        styles.push(format!("background: {}", bg));
+                    } else if let Some(mut bg) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
+                        if bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
+                        styles.push(format!("background-color: {}", bg));
+                    } else {
+                        // Fallback when no background provided
+                        styles.push("background-color: #000000".to_string());
+                    }
+                } else if component_type == "footer" {
+                    if let Some(bg) = template.template_data.get("background").and_then(|v| v.as_str()) {
+                        styles.push(format!("--public-footer-bg: {}", bg));
+                    } else if let Some(bg) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
+                        styles.push(format!("--public-footer-bg: {}", bg));
+                    }
+                } else {
+                    if let Some(background) = template.template_data.get("background").and_then(|v| v.as_str()) {
+                        styles.push(format!("background: {}", background));
+                    } else if let Some(background) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
+                        styles.push(format!("background-color: {}", background));
+                    }
                 }
                 
-                if let Some(z_index) = template.template_data.get("z_index").and_then(|v| v.as_str()) {
-                    styles.push(format!("z-index: {}", z_index));
+                // Optional text color overrides via CSS variables for header/footer
+                if component_type == "header" {
+                    if let Some(text_color) = template.template_data.get("text_color").and_then(|v| v.as_str()) {
+                        styles.push(format!("--header-text: {}", text_color));
+                    } else {
+                        // Default to white for readability on black header
+                        styles.push("--header-text: #ffffff".to_string());
+                    }
+                    if let Some(text_hover) = template.template_data.get("text_hover_color").and_then(|v| v.as_str()) {
+                        styles.push(format!("--header-text-hover: {}", text_hover));
+                    } else {
+                        styles.push("--header-text-hover: #f7fafc".to_string());
+                    }
+                    if let Some(nav_hover) = template.template_data.get("nav_hover_color").and_then(|v| v.as_str()) {
+                        styles.push(format!("--nav-hover-color: {}", nav_hover));
+                    }
+                    if let Some(nav_underline) = template.template_data.get("nav_underline_color").and_then(|v| v.as_str()) {
+                        styles.push(format!("--nav-underline-color: {}", nav_underline));
+                    }
+                    if let Some(thickness) = template.template_data.get("nav_underline_thickness").and_then(|v| v.as_str()) {
+                        styles.push(format!("--nav-underline-thickness: {}", thickness));
+                    }
+                    if let Some(anim) = template.template_data.get("nav_underline_animation").and_then(|v| v.as_str()) {
+                        styles.push(format!("--nav-underline-animation: {}", anim));
+                    }
+                }
+                if component_type == "footer" {
+                    if let Some(text_color) = template.template_data.get("text_color").and_then(|v| v.as_str()) {
+                        styles.push(format!("--footer-text: {}", text_color));
+                    }
+                    if let Some(text_muted) = template.template_data.get("text_muted").and_then(|v| v.as_str()) {
+                        styles.push(format!("--footer-text-muted: {}", text_muted));
+                    }
+                    if let Some(bg) = template.template_data.get("background").and_then(|v| v.as_str()) {
+                        styles.push(format!("--footer-background: {}", bg));
+                    }
+                }
+
+                if let Some(z_index_val) = template.template_data.get("z_index") {
+                    if let Some(z) = z_index_val.as_i64() {
+                        styles.push(format!("z-index: {}", z));
+                    } else if let Some(z) = z_index_val.as_str() {
+                        styles.push(format!("z-index: {}", z));
+                    }
                 }
                 
                 if let Some(padding) = template.template_data.get("padding").and_then(|v| v.as_str()) {
@@ -180,6 +260,74 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
             } else {
                 String::new()
             }
+        }
+    };
+
+    // Global style variables derived from specific component templates (e.g., posts_list)
+    let global_style_vars = {
+        let component_templates = component_templates.clone();
+        move || -> String {
+            let mut vars: Vec<String> = Vec::new();
+            if let Some(posts_tpl) = component_templates.iter().find(|t| t.component_type == "posts_list" && t.is_active) {
+                if let Some(bg) = posts_tpl.template_data.get("card_background").and_then(|v| v.as_str()) {
+                    vars.push(format!("--posts-card-bg: {}", bg));
+                }
+                if let Some(radius) = posts_tpl.template_data.get("card_radius").and_then(|v| v.as_str()) {
+                    vars.push(format!("--posts-card-radius: {}", radius));
+                }
+                if let Some(shadow) = posts_tpl.template_data.get("card_shadow").and_then(|v| v.as_str()) {
+                    vars.push(format!("--posts-card-shadow: {}", shadow));
+                }
+                if let Some(title_color) = posts_tpl.template_data.get("title_color").and_then(|v| v.as_str()) {
+                    vars.push(format!("--posts-title-color: {}", title_color));
+                }
+                if let Some(meta_color) = posts_tpl.template_data.get("meta_color").and_then(|v| v.as_str()) {
+                    vars.push(format!("--posts-meta-color: {}", meta_color));
+                }
+                if let Some(link_color) = posts_tpl.template_data.get("link_color").and_then(|v| v.as_str()) {
+                    vars.push(format!("--posts-link-color: {}", link_color));
+                }
+                if let Some(grid_gap) = posts_tpl.template_data.get("grid_gap").and_then(|v| v.as_str()) {
+                    vars.push(format!("--posts-grid-gap: {}", grid_gap));
+                }
+            }
+            // Hero variables (background/text)
+            if let Some(hero_tpl) = component_templates.iter().find(|t| t.component_type == "hero" && t.is_active) {
+                if let Some(bg) = hero_tpl.template_data.get("background").and_then(|v| v.as_str()) {
+                    vars.push(format!("--hero-bg: {}", bg));
+                }
+                if let Some(color) = hero_tpl.template_data.get("text_color").and_then(|v| v.as_str()) {
+                    vars.push(format!("--hero-text: {}", color));
+                }
+            }
+            // Buttons
+            if let Some(btn_tpl) = component_templates.iter().find(|t| t.component_type == "header" && t.is_active) {
+                if let Some(bg) = btn_tpl.template_data.get("button_primary_bg").and_then(|v| v.as_str()) {
+                    vars.push(format!("--button-primary-bg: {}", bg));
+                }
+                if let Some(text) = btn_tpl.template_data.get("button_primary_text").and_then(|v| v.as_str()) {
+                    vars.push(format!("--button-primary-text: {}", text));
+                }
+                if let Some(hover_bg) = btn_tpl.template_data.get("button_primary_hover_bg").and_then(|v| v.as_str()) {
+                    vars.push(format!("--button-primary-hover-bg: {}", hover_bg));
+                }
+            }
+            // Badges
+            if let Some(badge_tpl) = component_templates.iter().find(|t| t.component_type == "header" && t.is_active) {
+                if let Some(bg) = badge_tpl.template_data.get("badge_bg").and_then(|v| v.as_str()) {
+                    vars.push(format!("--badge-bg: {}", bg));
+                }
+                if let Some(text) = badge_tpl.template_data.get("badge_text").and_then(|v| v.as_str()) {
+                    vars.push(format!("--badge-text: {}", text));
+                }
+            }
+            // Background animation
+            if let Some(site_tpl) = component_templates.iter().find(|t| t.component_type == "main_container" && t.is_active) {
+                if let Some(anim) = site_tpl.template_data.get("background_animation").and_then(|v| v.as_str()) {
+                    vars.push(format!("--bg-animation: {}", anim));
+                }
+            }
+            vars.join("; ")
         }
     };
 
@@ -214,7 +362,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     };
 
     html! {
-        <div class="public-site">
+        <div class="public-site" style={global_style_vars()}>
             {if is_component_active("header") {
                 html! {
                     <header class="site-header" style={get_component_style("header")}>

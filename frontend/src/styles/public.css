@@ -70,6 +70,28 @@
     --font-size-3xl: 1.875rem;
     --font-size-4xl: 2.25rem;
     --font-size-5xl: 3rem;
+
+    /* Navigation defaults */
+    --nav-hover-color: var(--header-text-hover);
+    --nav-underline-color: var(--header-text);
+    --nav-underline-thickness: 2px;
+    --nav-underline-animation: none;
+
+    /* Hero defaults */
+    --hero-bg: transparent;
+    --hero-text: var(--primary-color);
+
+    /* Button defaults */
+    --button-primary-bg: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+    --button-primary-text: #ffffff;
+    --button-primary-hover-bg: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2));
+
+    /* Badge defaults */
+    --badge-bg: #e2e8f0;
+    --badge-text: #111827;
+
+    /* Background animation */
+    --bg-animation: none;
 }
 
 /* Modern Typography */
@@ -133,7 +155,7 @@
 }
 
 .site-nav a:hover {
-    color: var(--header-text-hover);
+    color: var(--nav-hover-color);
 }
 
 .site-nav a:visited {
@@ -148,12 +170,14 @@
     content: '';
     position: absolute;
     width: 0;
-    height: 2px;
+    height: var(--nav-underline-thickness);
     bottom: -6px;
     left: 50%;
-    background: var(--header-text);
+    background: var(--nav-underline-color);
     transition: var(--transition);
     transform: translateX(-50%);
+    background-size: 200% 100%;
+    animation: var(--nav-underline-animation);
 }
 
 .site-nav a:hover::after {
@@ -161,8 +185,8 @@
 }
 
 .nav-button {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
-    color: white;
+    background: var(--button-primary-bg);
+    color: var(--button-primary-text);
     border: 1px solid rgba(255, 255, 255, 0.3);
     padding: var(--spacing-xs) var(--spacing-lg);
     border-radius: var(--border-radius-sm);
@@ -175,7 +199,7 @@
 }
 
 .nav-button:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+    background: var(--button-primary-hover-bg);
     border-color: rgba(255, 255, 255, 0.5);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -198,6 +222,7 @@
     text-align: center;
     padding: var(--spacing-xxl) 0;
     margin-bottom: var(--spacing-xxl);
+    background: var(--hero-bg);
 }
 
 .hero h2 {
@@ -215,11 +240,40 @@
 
 .hero p {
     font-size: var(--font-size-xl);
-    color: var(--text-light);
+    color: var(--hero-text);
     max-width: 650px;
     margin: 0 auto;
     line-height: 1.7;
     font-weight: 400;
+}
+
+/* Badge */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* Background gradient animation */
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Underline shimmer animation */
+@keyframes underlineShimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+/* Allow animated backgrounds on header/site via var */
+.site-header, .public-site {
+    animation: var(--bg-animation);
 }
 
 /* Section Titles */
@@ -249,20 +303,20 @@
 /* Modern Posts Grid */
 .posts-grid {
     display: grid;
-    gap: var(--spacing-xl);
+    gap: var(--posts-grid-gap, var(--spacing-xl));
     margin-bottom: var(--spacing-xxl);
 }
 
 /* Enhanced Post Cards */
 .post-card {
-    background: var(--background-white);
+    background: var(--posts-card-bg, var(--background-white));
     border: 1px solid var(--border-light);
-    border-radius: var(--border-radius);
+    border-radius: var(--posts-card-radius, var(--border-radius));
     padding: var(--spacing-xl);
     transition: var(--transition);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(72, 87, 133, 0.06);
+    box-shadow: var(--posts-card-shadow, 0 2px 8px rgba(72, 87, 133, 0.06));
 }
 
 .post-card::before {
@@ -292,14 +346,14 @@
 .post-card h4 {
     font-size: var(--font-size-2xl);
     font-weight: 700;
-    color: var(--heading-h3);
+    color: var(--posts-title-color, var(--heading-h3));
     margin-bottom: var(--spacing-md);
     letter-spacing: -0.01em;
     line-height: 1.3;
 }
 
 .post-meta {
-    color: var(--text-lighter);
+    color: var(--posts-meta-color, var(--text-lighter));
     font-size: var(--font-size-sm);
     margin-bottom: var(--spacing-md);
     font-weight: 600;
@@ -318,7 +372,7 @@
 }
 
 .read-more {
-    color: var(--link-primary);
+    color: var(--posts-link-color, var(--link-primary));
     text-decoration: none;
     font-weight: 600;
     font-size: var(--font-size-sm);

@@ -2233,9 +2233,18 @@ pub fn apply_admin_css_variables(scheme: &AdminColorScheme) {
                     style_element.set_id("admin-theme-overrides");
                     
                     // Comprehensive CSS variables for the entire admin design system
+                    // Include container_* variables so template manager container settings flow into theme
                     let css_overrides = format!(r#"
                         /* Comprehensive Admin Design System Variables */
                         :root {{
+                            /* == Container (Template) Variables == */
+                            --container-background-type: var(--container-background-type, none);
+                            --container-background-color: var(--container-background-color, #ffffff);
+                            --container-gradient-from: var(--container-gradient-from, #ffffff);
+                            --container-gradient-to: var(--container-gradient-to, #ffffff);
+                            --container-gradient-angle: var(--container-gradient-angle, 180deg);
+                            --container-overlay-color: var(--container-overlay-color, #000000);
+                            --container-overlay-opacity: var(--container-overlay-opacity, 0.3);
                             /* == Core Colors == */
                             --admin-primary-color: {} !important;
                             --admin-primary-hover: {} !important;
@@ -2497,6 +2506,7 @@ pub fn apply_public_css_variables(scheme: &PublicColorScheme) {
                 .collect::<Vec<_>>()
                 .join(";");
             
+            // Append without forcing header bg, so header component-specific inline style can win
             let new_style = if cleaned_style.trim().is_empty() {
                 public_vars
             } else {

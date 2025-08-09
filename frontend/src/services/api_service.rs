@@ -174,6 +174,32 @@ pub struct SystemMetrics {
     pub uptime_seconds: u64,
 }
 
+// Templates (master) API
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct Template {
+    pub id: i32,
+    pub name: String,
+    // Layout is arbitrary JSON stored as string on backend; we keep as String here
+    pub layout: String,
+}
+
+pub async fn get_templates() -> Result<Vec<Template>, ApiServiceError> {
+    let response = create_authenticated_request("GET", &format!("{}/templates", API_BASE_URL))?
+        .send()
+        .await
+        .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;
+
+    if response.status() == 200 {
+        let templates: Vec<Template> = response
+            .json()
+            .await
+            .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+        Ok(templates)
+    } else {
+        Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
+    }
+}
+
 #[derive(Debug)]
 pub enum ApiServiceError {
     NetworkError(String),

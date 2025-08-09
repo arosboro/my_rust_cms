@@ -390,6 +390,90 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 info!("Created default component template: {}", name_str);
             }
         }
+
+        // Create master templates (templates table) if none exist
+        {
+            use crate::schema::templates;
+            let existing_master_templates = templates::table.load::<Template>(&mut conn)?;
+            if existing_master_templates.is_empty() {
+                // Build Default template layout JSON (aligned with current defaults)
+                let default_layout = serde_json::json!({
+                    "menu_areas": [
+                        {"area_name": "header", "display_name": "Header Menu", "is_active": true, "settings": {"layout": "horizontal", "background": "#ffffff"}},
+                        {"area_name": "footer", "display_name": "Footer Menu", "is_active": true, "settings": {"style": "simple", "background": "#111111", "text_color": "#cccccc"}},
+                        {"area_name": "floating", "display_name": "Floating Menu", "is_active": false, "settings": {"position": "fixed-right"}}
+                    ],
+                    "component_templates": [
+                        {"component_type": "header", "template_data": {"position": "sticky", "height": "110px", "background_color": "#000000", "text_color": "#ffffff", "text_hover_color": "#f7fafc", "nav_hover_color": "#f7fafc", "nav_underline_color": "#ffffff", "nav_underline_thickness": "2px", "nav_underline_animation": "none", "navigation_layout": "horizontal", "logo_type": "text", "logo_size": "1.85rem", "mobile_menu": "hamburger", "mobile_breakpoint": "768px"}, "breakpoints": {"mobile": "768px", "tablet": "1024px", "desktop": "1200px"}, "width_setting": "contained", "max_width": "1200px", "is_active": true},
+                        {"component_type": "footer", "template_data": {"style": "simple", "padding": "3rem 0", "navigation_layout": "horizontal", "copyright_position": "center", "copyright_text": "© 2024 My Rust CMS", "additional_text": "Built with Rust & Yew"}, "breakpoints": {"mobile": "768px", "tablet": "1024px", "desktop": "1200px"}, "width_setting": "full", "is_active": true},
+                        {"component_type": "sidebar", "template_data": {"position": "right", "width": "300px", "sticky": true, "mobile_display": "hidden", "mobile_breakpoint": "768px", "sections": ["navigation", "recent_posts"]}, "breakpoints": {"mobile": "768px", "tablet": "1024px", "desktop": "1200px"}, "width_setting": "fixed", "max_width": "300px", "is_active": false},
+                        {"component_type": "modal", "template_data": {"backdrop": "blur", "position": "center", "animation": "fade", "max_width": "600px", "z_index": 1000}, "breakpoints": {"mobile": "95%", "tablet": "80%", "desktop": "600px"}, "width_setting": "responsive", "max_width": "600px", "is_active": true},
+                        {"component_type": "main_container", "template_data": {"width_type": "fixed", "max_width": "1200px", "padding": "1rem", "grid_system": "css_grid", "responsive": true}, "breakpoints": {"mobile": "100%", "tablet": "90%", "desktop": "1200px"}, "width_setting": "fixed", "max_width": "1200px", "is_active": true}
+                    ],
+                    "container_settings": {
+                        "background_type": "none",
+                        "background_color": "#ffffff",
+                        "gradient_from": "#ffffff",
+                        "gradient_to": "#ffffff",
+                        "gradient_angle": "180deg",
+                        "overlay_color": "#000000",
+                        "overlay_opacity": "0.3",
+                        "border_radius": "0px",
+                        "border_width": "0px",
+                        "border_color": "#000000",
+                        "box_shadow": "none",
+                        "animation": "none",
+                        "width_type": "fixed",
+                        "max_width": "1200px",
+                        "horizontal_padding": "1rem"
+                    }
+                }).to_string();
+
+                // Build Acid Mode template layout JSON
+                let acid_layout = serde_json::json!({
+                    "menu_areas": [
+                        {"area_name": "header", "display_name": "Header Menu", "is_active": true, "settings": {"layout": "centered", "background": "linear-gradient(135deg, #ff00cc 0%, #3333ff 100%)", "text_color": "#ffffff"}},
+                        {"area_name": "footer", "display_name": "Footer Menu", "is_active": true, "settings": {"style": "multi-column", "background": "linear-gradient(180deg, #111111 0%, #000000 100%)", "text_color": "#66ffcc"}},
+                        {"area_name": "floating", "display_name": "Floating Menu", "is_active": true, "settings": {"position": "fixed-right"}}
+                    ],
+                    "component_templates": [
+                        {"component_type": "header", "template_data": {"position": "sticky", "height": "88px", "background": "linear-gradient(90deg, #ff0066, #ffcc00, #33ff99)", "navigation_layout": "split", "logo_type": "icon", "logo_size": "2rem", "hover_effect": "scale", "neon_glow": "0 0 20px #33ff99", "text_color": "#ffffff", "text_hover_color": "#e2e8f0", "nav_hover_color": "#a5b4fc", "nav_underline_color": "linear-gradient(90deg, #ff0066, #ffcc00, #33ff99)", "nav_underline_thickness": "3px", "nav_underline_animation": "underlineShimmer 3s linear infinite"}, "breakpoints": {"mobile": "768px", "tablet": "1024px", "desktop": "1400px"}, "width_setting": "fluid", "is_active": true},
+                        {"component_type": "footer", "template_data": {"style": "multi-column", "padding": "4rem 0", "navigation_layout": "grid", "link_spacing": "1rem", "separator": "dot", "background": "linear-gradient(45deg, #111111, #222244)", "text_glow": "0 0 10px #66ffcc", "text_color": "#ffffff"}, "breakpoints": {"mobile": "768px", "tablet": "1024px", "desktop": "1400px"}, "width_setting": "full", "is_active": true},
+                        {"component_type": "sidebar", "template_data": {"position": "both", "width": "320px", "sticky": true, "mobile_display": "drawer", "sections": ["navigation", "recent_posts", "categories", "archives"], "background": "linear-gradient(180deg, rgba(255,0,102,0.1), rgba(51,255,153,0.1))", "border": "2px solid", "border_image": "linear-gradient(90deg, #ff0066, #33ff99) 1"}, "breakpoints": {"mobile": "768px", "tablet": "1024px", "desktop": "1400px"}, "width_setting": "fixed", "max_width": "320px", "is_active": true},
+                        {"component_type": "modal", "template_data": {"backdrop": "blur", "position": "center", "animation": "scale", "max_width": "800px", "z_index": 1200, "backdrop_opacity": 70, "backdrop_gradient": "radial-gradient(circle at center, rgba(255,0,102,0.4), rgba(0,0,0,0.8))"}, "breakpoints": {"mobile": "95%", "tablet": "85%", "desktop": "800px"}, "width_setting": "responsive", "max_width": "800px", "is_active": true},
+                        {"component_type": "main_container", "template_data": {"width_type": "hybrid", "max_width": "1280px", "padding": "1.5rem", "responsive": true, "background_type": "gradient", "gradient_from": "#0f0f3d", "gradient_to": "#000000", "gradient_angle": "135deg", "gradient_animate": true, "background_animation": "gradientShift 20s ease infinite", "card_background": "#0f1629", "grid_gap": "24px", "card_radius": "12px", "card_shadow": "0 2px 12px rgba(0,0,0,0.35)", "title_color": "#e2e8f0", "meta_color": "#94a3b8", "link_color": "#22d3ee"}, "breakpoints": {"mobile": "100%", "tablet": "95%", "desktop": "1280px"}, "width_setting": "hybrid", "max_width": "1280px", "is_active": true}
+                    ],
+                    "container_settings": {
+                        "background_type": "gradient",
+                        "background_color": "#0b0b0b",
+                        "gradient_from": "#0f0f3d",
+                        "gradient_to": "#000000",
+                        "gradient_angle": "135deg",
+                        "overlay_color": "#00ffcc",
+                        "overlay_opacity": "0.12",
+                        "border_radius": "16px",
+                        "border_width": "2px",
+                        "border_color": "#33ff99",
+                        "box_shadow": "0 10px 40px rgba(51,255,153,0.25)",
+                        "animation": "fade-in",
+                        "width_type": "hybrid",
+                        "max_width": "1280px",
+                        "horizontal_padding": "2rem"
+                    }
+                }).to_string();
+
+                let new_default = NewTemplate { name: "Default".to_string(), layout: default_layout };
+                let new_acid = NewTemplate { name: "Acid Mode".to_string(), layout: acid_layout };
+
+                diesel::insert_into(templates::table)
+                    .values(&new_default)
+                    .execute(&mut conn)?;
+                diesel::insert_into(templates::table)
+                    .values(&new_acid)
+                    .execute(&mut conn)?;
+                info!("Seeded master templates: Default, Acid Mode");
+            }
+        }
     }
 
     // Configure CORS with proper security

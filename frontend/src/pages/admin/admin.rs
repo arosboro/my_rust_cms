@@ -2,9 +2,11 @@ use yew::prelude::*;
 use crate::components::admin::{AdminSidebar, AdminHeader};
 use crate::components::admin::sidebar::AdminTab;
 use crate::pages::admin::{dashboard::AdminDashboard, post_list::PostList, post_editor::PostEditor, page_builder::PageBuilder, media_library::MediaLibrary, enhanced_user_management::EnhancedUserManagement, comment_moderation::CommentModeration, navigation_manager::NavigationManager, template_manager::TemplateManager, analytics::Analytics, system_settings::SystemSettings, design_system::DesignSystemPage};
+use crate::services::migrate_pages::create_essential_pages;
 use crate::pages::admin::design_system::{AdminColorScheme, apply_admin_css_variables};
-use crate::services::auth_service::User;
+use crate::services::navigation_service::get_component_templates;
 use crate::services::api_service::get_settings;
+use crate::services::auth_service::User;
 
 #[derive(Properties, PartialEq)]
 pub struct AdminProps {
@@ -22,6 +24,48 @@ pub fn admin(props: &AdminProps) -> Html {
     // Load saved admin theme from database on component mount and cleanup on unmount
     use_effect_with_deps(|_| {
         wasm_bindgen_futures::spawn_local(async {
+            // Ensure essential pages exist on first load
+            if let Err(err) = create_essential_pages().await {
+                log::warn!("Failed to create essential pages (may already exist): {:?}", err);
+            }
+            // First, load container settings and inject as CSS variables
+            match get_settings(Some("container")).await {
+                Ok(container_settings) => {
+                    // Build CSS for :root with container variables
+                    let mut vars: Vec<String> = Vec::new();
+                    for setting in container_settings {
+                        if let Some(value) = setting.setting_value.clone() {
+                            if let Some(rest) = setting.setting_key.strip_prefix("container_") {
+                                // Construct CSS var line without quotes
+                                vars.push(format!("--container-{}: {} !important;", rest, value));
+                            }
+                        }
+                    }
+                    if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+                        // Remove existing container overrides
+                        if let Some(style_el) = document.query_selector("style#container-settings-overrides").ok().flatten() {
+                            let _ = style_el.remove();
+                        }
+                        if let Some(head) = document.head() {
+                            if let Ok(style_el) = document.create_element("style") {
+                                style_el.set_id("container-settings-overrides");
+                                let css_text = format!(":root {{\n    {}\n}}", vars.join("\n    "));
+                                style_el.set_text_content(Some(&css_text));
+                                let _ = head.append_child(&style_el);
+                                log::info!("🧩 Injected container CSS variables ({} settings)", vars.len());
+                            }
+                        }
+                    }
+                },
+                Err(err) => {
+                    log::warn!("Could not load container settings: {:?}", err);
+                }
+            }
+
+            // Auto-apply default template if available (first template assumed as default)
+            // Fetch component templates to ensure defaults are in effect for preview areas
+            let _ = get_component_templates().await;
+
             // Try to load the saved theme from database
             match get_settings(Some("theme")).await {
                 Ok(theme_settings) => {

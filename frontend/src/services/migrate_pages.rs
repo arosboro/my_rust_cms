@@ -208,7 +208,7 @@ pub fn create_home_page_components() -> Vec<PageComponent> {
         PageComponent {
             id: generate_component_id(),
             component_type: ComponentType::Hero,
-            content: "# Welcome to My Rust CMS\n\nA modern content management system built with Rust and WebAssembly".to_string(),
+            content: "# My Rust CMS\n\nFast. Secure. Extensible. Built with Rust & WebAssembly.".to_string(),
             styles: ComponentStyles {
                 background_color: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)".to_string(),
                 text_color: "white".to_string(),
@@ -221,11 +221,11 @@ pub fn create_home_page_components() -> Vec<PageComponent> {
         },
         PageComponent {
             id: generate_component_id(),
-            component_type: ComponentType::Text,
-            content: "Welcome to our modern content management system built with Rust and WebAssembly. Experience blazing fast performance with a clean, intuitive interface.".to_string(),
+            component_type: ComponentType::List,
+            content: "Core Benefits".to_string(),
             styles: ComponentStyles {
                 padding: "2rem".to_string(),
-                text_align: "center".to_string(),
+                text_align: "left".to_string(),
                 font_size: "18px".to_string(),
                 ..default_component_styles()
             },
@@ -274,6 +274,35 @@ pub fn create_posts_page_components() -> Vec<PageComponent> {
     ]
 }
 
+pub fn create_why_mrcms_page_components() -> Vec<PageComponent> {
+    vec![
+        PageComponent {
+            id: generate_component_id(),
+            component_type: ComponentType::Heading,
+            content: "# Why My Rust CMS".to_string(),
+            styles: ComponentStyles { text_align: "center".to_string(), padding: "2rem".to_string(), ..default_component_styles() },
+            position: default_position(),
+            properties: default_properties(),
+        },
+        PageComponent {
+            id: generate_component_id(),
+            component_type: ComponentType::Text,
+            content: "Built with Rust for performance and safety. Yew/WASM for a seamless admin. Modular templates, page builder, and enterprise security.".to_string(),
+            styles: ComponentStyles { padding: "1rem 2rem".to_string(), ..default_component_styles() },
+            position: default_position(),
+            properties: default_properties(),
+        },
+        PageComponent {
+            id: generate_component_id(),
+            component_type: ComponentType::List,
+            content: "Highlights".to_string(),
+            styles: ComponentStyles { padding: "1rem 2rem".to_string(), ..default_component_styles() },
+            position: default_position(),
+            properties: default_properties(),
+        },
+    ]
+}
+
 pub async fn create_essential_pages() -> Result<Vec<PageItem>, ApiServiceError> {
     let mut created_pages = Vec::new();
     
@@ -281,6 +310,7 @@ pub async fn create_essential_pages() -> Result<Vec<PageItem>, ApiServiceError> 
     let existing_pages = get_pages().await?;
     let has_home = existing_pages.iter().any(|p| p.slug == "home");
     let has_posts = existing_pages.iter().any(|p| p.slug == "posts");
+    let has_why = existing_pages.iter().any(|p| p.slug == "why-my-rust-cms");
     
     // Create home page if it doesn't exist
     if !has_home {
@@ -338,6 +368,19 @@ pub async fn create_essential_pages() -> Result<Vec<PageItem>, ApiServiceError> 
         }
     } else {
         gloo::console::log!("ℹ️ Posts page already exists, skipping creation");
+    }
+    
+    // Create Why My Rust CMS page if it doesn't exist
+    if !has_why {
+        let comps = create_why_mrcms_page_components();
+        let content = serde_json::to_string(&comps).unwrap_or_default();
+        let why_page = PageItem { id: None, title: "Why My Rust CMS".to_string(), slug: "why-my-rust-cms".to_string(), content, status: "published".to_string(), created_at: None, updated_at: None };
+        match create_page(&why_page).await {
+            Ok(page) => { gloo::console::log!("✅ Created Why My Rust CMS page"); created_pages.push(page); }
+            Err(e) => { gloo::console::error!("❌ Failed to create Why page:", &format!("{:?}", e)); return Err(e); }
+        }
+    } else {
+        gloo::console::log!("ℹ️ Why My Rust CMS page already exists, skipping creation");
     }
     
     Ok(created_pages)

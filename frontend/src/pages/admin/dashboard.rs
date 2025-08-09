@@ -1,5 +1,6 @@
 use yew::prelude::*;
-use crate::services::api_service::{get_posts, get_media, get_comments, Post, MediaItem};
+use crate::services::api_service::{get_posts, get_media, get_comments, get_pages, Post, MediaItem};
+use crate::services::migrate_pages::create_essential_pages;
 use crate::components::admin::sidebar::AdminTab;
 
 #[derive(Properties, PartialEq)]
@@ -33,19 +34,31 @@ pub fn admin_dashboard(props: &AdminDashboardProps) -> Html {
     let recent_media = use_state(Vec::<MediaItem>::new);
     let loading = use_state(|| true);
     let error = use_state(|| None::<String>);
+    let show_create_essentials = use_state(|| false);
 
-    // Load dashboard data
+    // Load dashboard data and ensure essential pages button visibility
     {
         let stats = stats.clone();
         let recent_posts = recent_posts.clone();
         let recent_media = recent_media.clone();
         let loading = loading.clone();
         let error = error.clone();
+        let show_create_essentials_handle = show_create_essentials.clone();
         
         use_effect_with_deps(move |_| {
             wasm_bindgen_futures::spawn_local(async move {
                 loading.set(true);
                 error.set(None);
+                // Check if essential pages exist
+                match get_pages().await {
+                    Ok(pages) => {
+                        let has_home = pages.iter().any(|p| p.slug == "home");
+                        let has_posts = pages.iter().any(|p| p.slug == "posts");
+                        let has_why = pages.iter().any(|p| p.slug == "why-my-rust-cms");
+                        show_create_essentials_handle.set(!(has_home && has_posts && has_why));
+                    }
+                    Err(_) => {}
+                }
                 
                 // Load posts
                 match get_posts().await {
@@ -285,6 +298,13 @@ pub fn admin_dashboard(props: &AdminDashboardProps) -> Html {
                                     Callback::from(move |_| on_navigate.emit(AdminTab::Posts))
                                 }}
                             >{"Create New Post"}</button>
+                            { if *show_create_essentials {
+                                html! {
+                                    <button class="btn btn-accent" onclick={Callback::from(move |_| {
+                                        wasm_bindgen_futures::spawn_local(async move { let _ = create_essential_pages().await; });
+                                    })}>{"Create Essential Pages"}</button>
+                                }
+                              } else { html!{} } }
                             <button 
                                 class="btn btn-secondary"
                                 onclick={{
