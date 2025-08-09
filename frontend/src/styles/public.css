@@ -92,6 +92,28 @@
 
     /* Background animation */
     --bg-animation: none;
+
+    /* Acid Mode variables */
+    --acid-border-width: 2px;
+    --acid-border-radius: 10px;
+    --acid-speed: 6s;
+    --acid-gradient: conic-gradient(from var(--acid-angle), #ff00e6, #00ffe0, #ffea00, #ff00e6);
+    --acid-opacity-min: 0.35;
+    --acid-opacity-max: 0.85;
+    --acid-pulse-scale: 1.6;
+    --acid-angle: 0deg;
+    --acid-extend: 0vmin;
+    --acid-extend-max: 80vmax;
+    --acid-liquid-scale: 6;
+    --acid-liquid-speed: 8s;
+    --acid-liquid-speed-variant: 6s;
+}
+
+/* Enable animatable custom property for smooth gradient sweep */
+@property --acid-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
 }
 
 /* Modern Typography */
@@ -274,6 +296,182 @@
 /* Allow animated backgrounds on header/site via var */
 .site-header, .public-site {
     animation: var(--bg-animation);
+}
+
+/* Acid Mode: animated gradient borders for all key blocks */
+.acid-mode .container,
+.acid-mode .post-card,
+.acid-mode .site-header .container,
+.acid-mode .site-footer .container,
+.acid-mode .hero,
+.acid-mode .read-more,
+.acid-mode .footer-nav,
+.acid-mode .public-site .section,
+.acid-mode .page-content,
+.acid-mode .post-content,
+/* Comments */
+.acid-mode .comments-section,
+.acid-mode .comments-list,
+.acid-mode .comment-bubble,
+.acid-mode .comment-form,
+/* Common nested atoms */
+.acid-mode button,
+.acid-mode .btn,
+.acid-mode a,
+.acid-mode blockquote,
+.acid-mode code,
+.acid-mode pre,
+.acid-mode .badge,
+.acid-mode input,
+.acid-mode textarea,
+.acid-mode select {
+    position: relative;
+    border-radius: var(--acid-border-radius);
+}
+
+.acid-mode .container::after,
+.acid-mode .post-card::after,
+.acid-mode .site-header .container::after,
+.acid-mode .site-footer .container::after,
+.acid-mode .hero::after,
+.acid-mode .read-more::after,
+.acid-mode .footer-nav::after,
+.acid-mode .public-site .section::after,
+.acid-mode .page-content::after,
+.acid-mode .post-content::after,
+.acid-mode .comments-section::after,
+.acid-mode .comments-list::after,
+.acid-mode .comment-bubble::after,
+.acid-mode .comment-form::after,
+.acid-mode button::after,
+.acid-mode .btn::after,
+.acid-mode a::after,
+.acid-mode blockquote::after,
+.acid-mode code::after,
+.acid-mode pre::after,
+.acid-mode .badge::after,
+.acid-mode input::after,
+.acid-mode textarea::after,
+.acid-mode select::after {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--acid-extend));
+    padding: calc(var(--acid-border-width) + var(--acid-extend));
+    border-radius: calc(var(--acid-border-radius) + var(--acid-extend));
+    background: var(--acid-gradient);
+    -webkit-mask: 
+        linear-gradient(#000 0 0) content-box, 
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation-name: acidSweep, acidHue;
+    animation-duration: var(--acid-speed), calc(var(--acid-speed) * 2);
+    animation-timing-function: ease-in-out, linear;
+    animation-iteration-count: infinite, infinite;
+    animation-fill-mode: both, both;
+    pointer-events: none;
+    opacity: var(--acid-opacity-max);
+    transition: opacity .4s ease, filter .4s ease;
+    will-change: opacity, filter, inset, padding, border-radius;
+    filter: url(#acid-waves);
+}
+
+/* Apply to immediate children of main containers to cover more components */
+.acid-mode .container > *::after {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--acid-extend));
+    padding: calc(var(--acid-border-width) + var(--acid-extend));
+    border-radius: calc(var(--acid-border-radius) + var(--acid-extend));
+    background: var(--acid-gradient);
+    -webkit-mask: 
+        linear-gradient(#000 0 0) content-box, 
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation-name: acidSweep, acidHue;
+    animation-duration: var(--acid-speed), calc(var(--acid-speed) * 2);
+    animation-timing-function: ease-in-out, linear;
+    animation-iteration-count: infinite, infinite;
+    animation-fill-mode: both, both;
+    filter: url(#acid-waves);
+    pointer-events: none;
+}
+
+@keyframes acidSweep {
+    0%   { --acid-angle: 0deg;   opacity: var(--acid-opacity-max); }
+    25%  {                      opacity: 0.6; }
+    50%  {                      opacity: var(--acid-opacity-min); }
+    75%  {                      opacity: 0.6; }
+    100% { --acid-angle: 360deg; opacity: var(--acid-opacity-max); }
+}
+
+/* Hover: pulsate and dissipate */
+.acid-mode .container:hover::after,
+.acid-mode .post-card:hover::after,
+.acid-mode .site-header .container:hover::after,
+.acid-mode .site-footer .container:hover::after,
+.acid-mode .hero:hover::after,
+.acid-mode .read-more:hover::after,
+.acid-mode .footer-nav:hover::after,
+.acid-mode .public-site .section:hover::after,
+.acid-mode .page-content:hover::after,
+.acid-mode .post-content:hover::after,
+.acid-mode .comments-section:hover::after,
+.acid-mode .comments-list:hover::after,
+.acid-mode .comment-bubble:hover::after,
+.acid-mode .comment-form:hover::after,
+.acid-mode button:hover::after,
+.acid-mode .btn:hover::after,
+.acid-mode a:hover::after,
+.acid-mode blockquote:hover::after,
+.acid-mode code:hover::after,
+.acid-mode pre:hover::after,
+.acid-mode .badge:hover::after,
+.acid-mode input:hover::after,
+.acid-mode textarea:hover::after,
+.acid-mode select:hover::after {
+    animation-name: acidSweep, acidHue, acidWave;
+    animation-duration: var(--acid-speed), calc(var(--acid-speed) * 2), 2.2s;
+    animation-timing-function: ease-in-out, linear, cubic-bezier(.45, 0, .25, 1);
+    animation-iteration-count: infinite, infinite, infinite;
+    animation-fill-mode: both, both, both;
+}
+
+@keyframes acidPulse {
+    0% { padding: var(--acid-border-width); filter: blur(0px); opacity: var(--acid-opacity-max); }
+    50% { padding: calc(var(--acid-border-width) * var(--acid-pulse-scale)); filter: blur(2px); opacity: 0.25; }
+    100% { padding: var(--acid-border-width); filter: blur(0px); opacity: var(--acid-opacity-max); }
+}
+
+@keyframes acidHue {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+/* Expansion wave: repeat outward until off-screen while dissolving */
+@keyframes acidWave {
+    0% {
+        --acid-extend: 0vmin;
+        opacity: 0.5;
+        filter: blur(0px);
+    }
+    10% {
+        opacity: var(--acid-opacity-max);
+    }
+    70% {
+        --acid-extend: calc(var(--acid-extend-max) * 0.8);
+        opacity: 0.18;
+        filter: blur(2px);
+    }
+    90% {
+        opacity: 0.05;
+    }
+    100% {
+        --acid-extend: var(--acid-extend-max);
+        opacity: 0;
+        filter: blur(3px);
+    }
 }
 
 /* Section Titles */

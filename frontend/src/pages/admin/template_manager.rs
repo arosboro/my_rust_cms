@@ -57,6 +57,9 @@ pub struct ContainerSettings {
 
     // Animation
     pub animation: String,
+
+    // Acid Mode - animated gradient borders for all components
+    pub acid_mode: bool,
 }
 
 impl Default for ContainerSettings {
@@ -93,6 +96,8 @@ impl Default for ContainerSettings {
             box_shadow: "none".to_string(),
 
             animation: "none".to_string(),
+
+            acid_mode: false,
         }
     }
 }
@@ -2099,6 +2104,7 @@ pub fn container_settings_view() -> Html {
                                 "container_border_color" => container_settings.border_color = setting.setting_value.unwrap_or_default(),
                                 "container_box_shadow" => container_settings.box_shadow = setting.setting_value.unwrap_or_default(),
                                 "container_animation" => container_settings.animation = setting.setting_value.unwrap_or_default(),
+                                "container_acid_mode" => container_settings.acid_mode = setting.setting_value.as_deref() == Some("true"),
                                 _ => {}
                             }
                         }
@@ -2216,6 +2222,7 @@ pub fn container_settings_view() -> Html {
                     SettingData { key: "container_border_color".to_string(), value: settings.border_color.clone(), setting_type: "container".to_string(), description: Some("Border color".to_string()) },
                     SettingData { key: "container_box_shadow".to_string(), value: settings.box_shadow.clone(), setting_type: "container".to_string(), description: Some("Box shadow".to_string()) },
                     SettingData { key: "container_animation".to_string(), value: settings.animation.clone(), setting_type: "container".to_string(), description: Some("Container animation".to_string()) },
+                    SettingData { key: "container_acid_mode".to_string(), value: settings.acid_mode.to_string(), setting_type: "container".to_string(), description: Some("Enable animated gradient borders across components".to_string()) },
                 ]);
 
                 match update_settings(settings_data).await {
@@ -2509,6 +2516,17 @@ pub fn container_settings_view() -> Html {
             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
             let mut s = (*settings).clone();
             s.border_width = input.value();
+            settings.set(s);
+        })
+    };
+
+    // Acid Mode toggle handler
+    let on_acid_mode_change = {
+        let settings = settings.clone();
+        Callback::from(move |e: Event| {
+            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+            let mut s = (*settings).clone();
+            s.acid_mode = input.checked();
             settings.set(s);
         })
     };
@@ -2833,6 +2851,10 @@ pub fn container_settings_view() -> Html {
                                 <label>{"Box Shadow"}</label>
                                 <input type="text" value={settings.box_shadow.clone()} class="container-input" onchange={on_box_shadow_change} />
                             </div>
+                                <div class="container-item">
+                                    <label>{"Acid Mode (animated gradient borders)"}</label>
+                                    <input type="checkbox" checked={settings.acid_mode} onchange={on_acid_mode_change} />
+                                </div>
                         </div>
                     </div>
                 </div>

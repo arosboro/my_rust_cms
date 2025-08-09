@@ -21,6 +21,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     let loading = use_state(|| true);
     let admin_button_visible = use_state(|| true); // Default to true until loaded
     let site_title = use_state(|| "My Rust CMS".to_string());
+    let acid_mode = use_state(|| false);
 
     // Load navigation items, component templates, and admin button setting
     {
@@ -30,6 +31,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         let loading = loading.clone();
         let admin_button_visible = admin_button_visible.clone();
         let site_title = site_title.clone();
+        let acid_mode = acid_mode.clone();
 
         use_effect_with_deps(move |_| {
             web_sys::console::log_1(&"PublicLayout: Starting to fetch navigation items, templates, and settings".into());
@@ -41,8 +43,9 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 // Load component templates
                 let templates_result = get_component_templates().await;
                 
-                // Load admin button setting
+                // Load site and container settings
                 let settings_result = get_settings(Some("site")).await;
+                let container_settings_result = get_settings(Some("container")).await;
                 
                 match header_nav_result {
                     Ok(items) => {
@@ -99,6 +102,22 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                     Err(e) => {
                         web_sys::console::log_1(&format!("Settings error: {:?}", e).into());
                         // Keep default value of true if settings fail to load
+                    }
+                }
+
+                // Parse container settings for acid mode
+                match container_settings_result {
+                    Ok(settings) => {
+                        if let Some(setting) = settings.iter().find(|s| s.setting_key == "container_acid_mode") {
+                            if let Some(ref value) = setting.setting_value {
+                                let enabled = value.trim().eq_ignore_ascii_case("true");
+                                acid_mode.set(enabled);
+                                web_sys::console::log_1(&format!("Acid mode set to: {}", enabled).into());
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&format!("Container settings error: {:?}", e).into());
                     }
                 }
                 
@@ -362,7 +381,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     };
 
     html! {
-        <div class="public-site" style={global_style_vars()}>
+        <div class={if *acid_mode { "public-site acid-mode" } else { "public-site" }} style={global_style_vars()}>
             {if is_component_active("header") {
                 html! {
                     <header class="site-header" style={get_component_style("header")}>
