@@ -513,6 +513,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let public_routes = Router::new()
         .route("/", get(root))
         .route("/health", get(health))
+        .route("/api/public/system/settings", get(controllers::system::get_public_settings))
         .route("/api/posts", get(controllers::posts::get_posts))
         .route("/api/auth/login", post(controllers::auth::login))
         .route("/api/auth/signup", post(controllers::auth::signup))

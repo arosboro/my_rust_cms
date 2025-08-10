@@ -11,7 +11,7 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     line-height: 1.6;
     color: var(--public-text-secondary, #333);
-    background: var(--public-background-light, #fff);
+    background: transparent !important;
 }
 
 /* Public Site Styles */

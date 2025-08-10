@@ -46,6 +46,7 @@ pub struct ContainerSettings {
     pub background_video_url: String,
     pub background_video_loop: bool,
     pub background_video_autoplay: bool,
+    pub background_video_muted: bool,
     pub overlay_color: String,
     pub overlay_opacity: String,
 
@@ -87,6 +88,7 @@ impl Default for ContainerSettings {
             background_video_url: "".to_string(),
             background_video_loop: true,
             background_video_autoplay: true,
+            background_video_muted: true,
             overlay_color: "#000000".to_string(),
             overlay_opacity: "0.3".to_string(),
 
@@ -146,6 +148,8 @@ pub fn template_manager() -> Html {
                 let areas_result = get_menu_areas().await;
                 let components_result = get_all_component_templates_admin().await;
                 let templates_result = get_templates().await;
+                // Also fetch existing container settings to decide whether to auto-apply defaults
+                let existing_container_settings = get_settings(Some("container")).await;
                 
                 match (&areas_result, &components_result, &templates_result) {
                     (Ok(areas), Ok(components), Ok(tpls)) => {
@@ -153,65 +157,78 @@ pub fn template_manager() -> Html {
                         menu_areas.set(areas.clone());
                         component_templates.set(components.clone());
                         templates_for_effect.set(tpls.clone());
-                        // Auto-select and apply default template once
+                        // Auto-select and apply default template once, but only when there are no existing container settings
                         if !*applied_default_once {
-                            if let Some(default_tpl) = tpls.iter().find(|t| t.name.to_lowercase() == "default")
-                                .or_else(|| tpls.first()) {
-                                selected_for_effect.set(Some(default_tpl.id));
-                                // Apply the template layout
-                                if let Ok(layout_json) = serde_json::from_str::<serde_json::Value>(&default_tpl.layout) {
-                                    // Apply menu areas
-                                    if let Some(areas_arr) = layout_json.get("menu_areas").and_then(|v| v.as_array()) {
-                                        for area in areas_arr {
-                                            if let (Some(area_name), Some(is_active)) = (area.get("area_name").and_then(|v| v.as_str()), area.get("is_active").and_then(|v| v.as_bool())) {
-                                                if let Some(existing) = areas.iter().find(|a| a.area_name == area_name) {
-                                                    let mut updated = existing.clone();
-                                                    updated.is_active = is_active;
-                                                    if let Some(settings) = area.get("settings").cloned() { updated.settings = settings; }
-                                                    if let Some(mobile) = area.get("mobile_behavior").and_then(|v| v.as_str()) { updated.mobile_behavior = Some(mobile.to_string()); }
-                                                    if let Some(icon) = area.get("hamburger_icon").and_then(|v| v.as_str()) { updated.hamburger_icon = Some(icon.to_string()); }
-                                                    let name = area_name.to_string();
-                                                    wasm_bindgen_futures::spawn_local(async move {
-                                                        let _ = update_menu_area(&name, &updated).await;
-                                                    });
+                            let should_apply_defaults = match &existing_container_settings {
+                                Ok(settings_vec) => {
+                                    // If there are zero container settings, we consider this a first-time init
+                                    settings_vec.is_empty()
+                                }
+                                Err(_) => {
+                                    // If we failed to fetch, be conservative and do NOT override user settings
+                                    false
+                                }
+                            };
+
+                            if should_apply_defaults {
+                                if let Some(default_tpl) = tpls.iter().find(|t| t.name.to_lowercase() == "default")
+                                    .or_else(|| tpls.first()) {
+                                    selected_for_effect.set(Some(default_tpl.id));
+                                    // Apply the template layout
+                                    if let Ok(layout_json) = serde_json::from_str::<serde_json::Value>(&default_tpl.layout) {
+                                        // Apply menu areas
+                                        if let Some(areas_arr) = layout_json.get("menu_areas").and_then(|v| v.as_array()) {
+                                            for area in areas_arr {
+                                                if let (Some(area_name), Some(is_active)) = (area.get("area_name").and_then(|v| v.as_str()), area.get("is_active").and_then(|v| v.as_bool())) {
+                                                    if let Some(existing) = areas.iter().find(|a| a.area_name == area_name) {
+                                                        let mut updated = existing.clone();
+                                                        updated.is_active = is_active;
+                                                        if let Some(settings) = area.get("settings").cloned() { updated.settings = settings; }
+                                                        if let Some(mobile) = area.get("mobile_behavior").and_then(|v| v.as_str()) { updated.mobile_behavior = Some(mobile.to_string()); }
+                                                        if let Some(icon) = area.get("hamburger_icon").and_then(|v| v.as_str()) { updated.hamburger_icon = Some(icon.to_string()); }
+                                                        let name = area_name.to_string();
+                                                        wasm_bindgen_futures::spawn_local(async move {
+                                                            let _ = update_menu_area(&name, &updated).await;
+                                                        });
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                    // Apply component templates
-                                    if let Some(components_arr) = layout_json.get("component_templates").and_then(|v| v.as_array()) {
-                                        for comp in components_arr {
-                                            if let Some(component_type) = comp.get("component_type").and_then(|v| v.as_str()) {
-                                                if let Some(existing) = components.iter().find(|t| t.component_type == component_type) {
-                                                    let mut updated = existing.clone();
-                                                    if let Some(data) = comp.get("template_data").cloned() { updated.template_data = data; }
-                                                    if let Some(bp) = comp.get("breakpoints").cloned() { updated.breakpoints = bp; }
-                                                    if let Some(width) = comp.get("width_setting").and_then(|v| v.as_str()) { updated.width_setting = Some(width.to_string()); }
-                                                    if let Some(max_w) = comp.get("max_width").and_then(|v| v.as_str()) { updated.max_width = Some(max_w.to_string()); }
-                                                    if let Some(is_active) = comp.get("is_active").and_then(|v| v.as_bool()) { updated.is_active = is_active; }
-                                                    let id = updated.id;
-                                                    wasm_bindgen_futures::spawn_local(async move {
-                                                        let _ = update_component_template(id, &updated).await;
-                                                    });
+                                        // Apply component templates
+                                        if let Some(components_arr) = layout_json.get("component_templates").and_then(|v| v.as_array()) {
+                                            for comp in components_arr {
+                                                if let Some(component_type) = comp.get("component_type").and_then(|v| v.as_str()) {
+                                                    if let Some(existing) = components.iter().find(|t| t.component_type == component_type) {
+                                                        let mut updated = existing.clone();
+                                                        if let Some(data) = comp.get("template_data").cloned() { updated.template_data = data; }
+                                                        if let Some(bp) = comp.get("breakpoints").cloned() { updated.breakpoints = bp; }
+                                                        if let Some(width) = comp.get("width_setting").and_then(|v| v.as_str()) { updated.width_setting = Some(width.to_string()); }
+                                                        if let Some(max_w) = comp.get("max_width").and_then(|v| v.as_str()) { updated.max_width = Some(max_w.to_string()); }
+                                                        if let Some(is_active) = comp.get("is_active").and_then(|v| v.as_bool()) { updated.is_active = is_active; }
+                                                        let id = updated.id;
+                                                        wasm_bindgen_futures::spawn_local(async move {
+                                                            let _ = update_component_template(id, &updated).await;
+                                                        });
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                    // Apply container settings
-                                    if let Some(container) = layout_json.get("container_settings").and_then(|v| v.as_object()) {
-                                        let mut settings_data: Vec<SettingData> = Vec::new();
-                                        for (key, value) in container.iter() {
-                                            let setting_key = format!("container_{}", key);
-                                            let setting_value = if value.is_string() { value.as_str().unwrap_or("").to_string() } else { value.to_string() };
-                                            settings_data.push(SettingData { key: setting_key, value: setting_value, setting_type: "container".to_string(), description: None });
+                                        // Apply container settings
+                                        if let Some(container) = layout_json.get("container_settings").and_then(|v| v.as_object()) {
+                                            let mut settings_data: Vec<SettingData> = Vec::new();
+                                            for (key, value) in container.iter() {
+                                                let setting_key = format!("container_{}", key);
+                                                let setting_value = if value.is_string() { value.as_str().unwrap_or("").to_string() } else { value.to_string() };
+                                                settings_data.push(SettingData { key: setting_key, value: setting_value, setting_type: "container".to_string(), description: None });
+                                            }
+                                            wasm_bindgen_futures::spawn_local(async move {
+                                                let _ = update_settings(settings_data).await;
+                                            });
                                         }
-                                        wasm_bindgen_futures::spawn_local(async move {
-                                            let _ = update_settings(settings_data).await;
-                                        });
                                     }
                                 }
-                                applied_default_once.set(true);
                             }
+                            applied_default_once.set(true);
                         }
                         loading.set(false);
                     }
@@ -2097,6 +2114,7 @@ pub fn container_settings_view() -> Html {
                                 "container_background_video_url" => container_settings.background_video_url = setting.setting_value.unwrap_or_default(),
                                 "container_background_video_loop" => container_settings.background_video_loop = setting.setting_value.as_deref() == Some("true"),
                                 "container_background_video_autoplay" => container_settings.background_video_autoplay = setting.setting_value.as_deref() == Some("true"),
+                                "container_background_video_muted" => container_settings.background_video_muted = setting.setting_value.as_deref() == Some("true"),
                                 "container_overlay_color" => container_settings.overlay_color = setting.setting_value.unwrap_or_default(),
                                 "container_overlay_opacity" => container_settings.overlay_opacity = setting.setting_value.unwrap_or_default(),
                                 "container_border_radius" => container_settings.border_radius = setting.setting_value.unwrap_or_default(),
@@ -2215,6 +2233,7 @@ pub fn container_settings_view() -> Html {
                     SettingData { key: "container_background_video_url".to_string(), value: settings.background_video_url.clone(), setting_type: "container".to_string(), description: Some("Background video URL".to_string()) },
                     SettingData { key: "container_background_video_loop".to_string(), value: settings.background_video_loop.to_string(), setting_type: "container".to_string(), description: Some("Background video loop".to_string()) },
                     SettingData { key: "container_background_video_autoplay".to_string(), value: settings.background_video_autoplay.to_string(), setting_type: "container".to_string(), description: Some("Background video autoplay".to_string()) },
+                    SettingData { key: "container_background_video_muted".to_string(), value: settings.background_video_muted.to_string(), setting_type: "container".to_string(), description: Some("Background video muted".to_string()) },
                     SettingData { key: "container_overlay_color".to_string(), value: settings.overlay_color.clone(), setting_type: "container".to_string(), description: Some("Overlay color".to_string()) },
                     SettingData { key: "container_overlay_opacity".to_string(), value: settings.overlay_opacity.clone(), setting_type: "container".to_string(), description: Some("Overlay opacity".to_string()) },
                     SettingData { key: "container_border_radius".to_string(), value: settings.border_radius.clone(), setting_type: "container".to_string(), description: Some("Border radius".to_string()) },
@@ -2808,6 +2827,18 @@ pub fn container_settings_view() -> Html {
                                             <div class="container-item">
                                                 <label>{"Autoplay"}</label>
                                                 <input type="checkbox" checked={settings.background_video_autoplay} onchange={on_background_video_autoplay_change} />
+                                            </div>
+                                            <div class="container-item">
+                                                <label>{"Muted"}</label>
+                                                <input type="checkbox" checked={settings.background_video_muted} onchange={
+                                                    let settings = settings.clone();
+                                                    Callback::from(move |e: Event| {
+                                                        let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+                                                        let mut s = (*settings).clone();
+                                                        s.background_video_muted = input.checked();
+                                                        settings.set(s);
+                                                    })
+                                                } />
                                             </div>
                                         </>
                                     },

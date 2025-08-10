@@ -124,6 +124,9 @@
     flex-direction: column;
     color: var(--primary-color);
     line-height: 1.7;
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
 }
 
 /* Modern Header with Enhanced Gradient */
@@ -134,7 +137,7 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 10;
     transition: var(--transition);
 }
 
@@ -231,12 +234,14 @@
 .site-main {
     flex: 1;
     padding-top: var(--spacing-xxl);
+    background: transparent !important;
 }
 
 .container {
     max-width: 900px;
     margin: 0 auto;
     padding: 0 var(--spacing-lg);
+    background: transparent !important;
 }
 
 /* Hero Section */

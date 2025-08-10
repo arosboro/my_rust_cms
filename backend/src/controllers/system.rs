@@ -54,6 +54,35 @@ pub async fn get_settings(
     Ok(ResponseJson(settings))
 }
 
+// Public: get a safe subset of settings (e.g., site/container/theme)
+pub async fn get_public_settings(
+    State(services): State<AppServices>,
+    Query(params): Query<SettingsQuery>
+) -> Result<ResponseJson<Vec<Setting>>, AppError> {
+    let mut conn = services.db_pool.get()
+        .map_err(|e| AppError::DatabaseConnection(e.to_string()))?;
+
+    // Only allow specific types to be exposed publicly
+    let allowed_types = ["site", "container", "theme"];
+
+    let settings = match params.setting_type {
+        Some(ref setting_type) if allowed_types.contains(&setting_type.as_str()) => {
+            Setting::list_by_type(&mut conn, setting_type)
+        }
+        // If no type provided, return only explicitly whitelisted keys that are safe
+        _ => {
+            use diesel::prelude::*;
+            use crate::schema::settings::dsl as s;
+            s::settings
+                .filter(s::setting_type.eq_any(allowed_types))
+                .load::<Setting>(&mut conn)
+        }
+    }
+    .map_err(|e| AppError::DatabaseQuery(e.to_string()))?;
+
+    Ok(ResponseJson(settings))
+}
+
 // Get specific setting by key
 pub async fn get_setting(
     State(services): State<AppServices>,

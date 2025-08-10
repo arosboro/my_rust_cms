@@ -750,10 +750,10 @@ pub struct TableSnapshot {
 // System Settings API
 pub async fn get_settings(setting_type: Option<&str>) -> Result<Vec<Setting>, ApiServiceError> {
     let url = match setting_type {
-        Some(t) => format!("{}/system/settings?setting_type={}", API_BASE_URL, t),
-        None => format!("{}/system/settings", API_BASE_URL),
+        Some(t) => format!("{}/public/system/settings?setting_type={}", API_BASE_URL, t),
+        None => format!("{}/public/system/settings", API_BASE_URL),
     };
-    
+    // Admin-only: requires auth
     let response = create_authenticated_request("GET", &url)?
         .send()
         .await
@@ -768,6 +768,46 @@ pub async fn get_settings(setting_type: Option<&str>) -> Result<Vec<Setting>, Ap
     } else {
         Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
     }
+}
+
+// Public settings fetcher (safe subset)
+pub async fn get_public_settings(setting_type: Option<&str>) -> Result<Vec<Setting>, ApiServiceError> {
+    // First try the dedicated public endpoint
+    let public_url = match setting_type {
+        Some(t) => format!("{}/public/system/settings?setting_type={}", API_BASE_URL, t),
+        None => format!("{}/public/system/settings", API_BASE_URL),
+    };
+    if let Ok(response) = Request::get(&public_url).send().await {
+        if response.status() == 200 {
+            let settings: Vec<Setting> = response
+                .json()
+                .await
+                .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+            return Ok(settings);
+        }
+    }
+
+    // Fallback to admin endpoint if authenticated
+    if let Ok(token) = get_auth_token() {
+        let admin_url = match setting_type {
+            Some(t) => format!("{}/system/settings?setting_type={}", API_BASE_URL, t),
+            None => format!("{}/system/settings", API_BASE_URL),
+        };
+        let response = Request::get(&admin_url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .send()
+            .await
+            .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;
+        if response.status() == 200 {
+            let settings: Vec<Setting> = response
+                .json()
+                .await
+                .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+            return Ok(settings);
+        }
+    }
+
+    Err(ApiServiceError::ServerError("Failed to fetch settings".to_string()))
 }
 
 pub async fn update_settings(settings: Vec<SettingData>) -> Result<Vec<Setting>, ApiServiceError> {
